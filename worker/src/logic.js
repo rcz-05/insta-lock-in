@@ -215,3 +215,62 @@ export function forceLock(s, now) {
   if (s.state === "locked") return s;
   return relock(s, now, "manual");
 }
+
+// Question asked in a nag for each unticked checklist action.
+function ask(action, s) {
+  const reels = s.items.length;
+  switch (action) {
+    case "view":
+      return "Seen her post?";
+    case "like":
+      return "Liked?";
+    case "comment":
+      return "Commented?";
+    case "watched":
+      return reels === 1 ? "Watched the Reel?" : `Watched all ${reels} Reels?`;
+    case "replied":
+      return "Replied?";
+    default:
+      return `${action}?`;
+  }
+}
+
+/**
+ * Reminder push during a session. Returns { state, message } where message is
+ * null when no nag is due. Posts nag every POST_NAG_MIN; Reels and mixed
+ * windows cycle through REEL_NAG_MIN by nag_count.
+ */
+export function nag(s, cfg, now) {
+  if (s.state !== "session") return { state: s, message: null };
+  const steps = s.reason === "post" ? cfg.postNagMin : cfg.reelNagMin;
+  const interval = steps[s.nag_count % steps.length] * MINUTE;
+  const since = s.last_nag ?? s.session_started;
+  if (now - since < interval) return { state: s, message: null };
+  const todo = s.required.filter((a) => !s.checked.includes(a));
+  const left = minutesLeft(s, now);
+  return {
+    state: { ...s, last_nag: now, nag_count: s.nag_count + 1 },
+    message: {
+      title: "Instagram check",
+      priority: "high",
+      body: `${todo.map((a) => ask(a, s)).join(" ")} Tick it and close the app. ${left} min left.`,
+      checklist: true,
+    },
+  };
+}
+
+/**
+ * Final push when a session has just ended through the checklist or the cap.
+ * Pass the state before and after a transition. Manual locks stay silent.
+ */
+export function finalPush(prev, next) {
+  if (prev.state === "locked" || next.state !== "locked") return null;
+  const how = next.log.at(-1)?.how;
+  if (how !== "checklist" && how !== "cap") return null;
+  return {
+    title: how === "cap" ? "Time is up" : "Checklist done",
+    priority: "high",
+    body: "Done. Delete Instagram now.",
+    checklist: false,
+  };
+}

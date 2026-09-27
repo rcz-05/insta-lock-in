@@ -10,6 +10,8 @@ import {
   forceLock,
   enforceCap,
   minutesLeft,
+  nag,
+  finalPush,
 } from "../src/logic.js";
 
 const cfg = readConfig({});
@@ -145,4 +147,55 @@ test("seen list is capped", () => {
   }
   assert.equal(s.seen.length, 200);
   assert.equal(s.seen.at(-1), "R249");
+});
+
+const open = (u, t = T0) => status(unlock(initialState(), u, cfg, t).state, t).state;
+
+test("no nag while locked or before the clock starts", () => {
+  assert.equal(nag(initialState(), cfg, T0).message, null);
+  const u = unlock(initialState(), post, cfg, T0).state;
+  assert.equal(nag(u, cfg, T0 + 60 * MINUTE).message, null);
+});
+
+test("post nags every 5 minutes with what is still unticked", () => {
+  let s = open(post);
+  assert.equal(nag(s, cfg, T0 + 4 * MINUTE).message, null);
+  let r = nag(s, cfg, T0 + 5 * MINUTE);
+  assert.equal(r.message.body, "Seen her post? Liked? Commented? Tick it and close the app. 10 min left.");
+  assert.equal(r.message.checklist, true);
+  assert.equal(r.state.nag_count, 1);
+  assert.equal(r.state.last_nag, T0 + 5 * MINUTE);
+  s = check(r.state, { checked: ["view"] }, T0 + 6 * MINUTE).state;
+  assert.equal(nag(s, cfg, T0 + 9 * MINUTE).message, null);
+  r = nag(s, cfg, T0 + 10 * MINUTE);
+  assert.equal(r.message.body, "Liked? Commented? Tick it and close the app. 5 min left.");
+});
+
+test("reels alternate 2 then 3 minutes", () => {
+  let s = open(reels);
+  const fired = [];
+  for (let m = 1; m <= 12; m++) {
+    const r = nag(s, cfg, T0 + m * MINUTE);
+    if (r.message) fired.push(m);
+    s = r.state;
+  }
+  assert.deepEqual(fired, [2, 5, 7, 10, 12]);
+});
+
+test("reel nag text counts the reels", () => {
+  const r = nag(open(reels), cfg, T0 + 2 * MINUTE);
+  assert.equal(r.message.body, "Watched all 3 Reels? Replied? Tick it and close the app. 11 min left.");
+  const one = nag(open({ reason: "reels", items: [{ id: "R1" }] }), cfg, T0 + 2 * MINUTE);
+  assert.match(one.message.body, /^Watched the Reel\? Replied\?/);
+});
+
+test("final push after checklist or cap, silent on manual lock", () => {
+  const s = open(post);
+  const done = check(s, { checked: ["view", "like", "comment"] }, T0 + MINUTE).state;
+  assert.equal(finalPush(s, done).body, "Done. Delete Instagram now.");
+  const capped = enforceCap(s, T0 + 15 * MINUTE);
+  assert.equal(finalPush(s, capped).title, "Time is up");
+  assert.equal(finalPush(s, forceLock(s, T0)), null);
+  assert.equal(finalPush(initialState(), initialState()), null);
+  assert.equal(finalPush(s, s), null);
 });
