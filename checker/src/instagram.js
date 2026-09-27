@@ -2,6 +2,8 @@
 // is a GET the Instagram website itself makes; nothing here likes, views a
 // story, or opens a chat, so nobody sees Rayan as "seen" or "viewed".
 
+import { readProfile } from "./scan.js";
+
 // Public app id the Instagram website sends with its own API calls.
 const APP_ID = "936619743392459";
 
@@ -33,29 +35,49 @@ async function get(page, path) {
   return body;
 }
 
-/** Profile: user id plus newest posts and Reels as [{ id, ts, url }]. */
-export async function profile(page, handle) {
-  const body = await get(page, `/api/v1/users/web_profile_info/?username=${encodeURIComponent(handle)}`);
-  const user = body?.data?.user;
-  if (!user) throw new Error(`no profile data for ${handle}`);
-  const edges = user.edge_owner_to_timeline_media?.edges ?? [];
-  const posts = edges.map(({ node }) => ({
-    id: node.shortcode,
-    ts: node.taken_at_timestamp * 1000,
-    url: `https://www.instagram.com/${node.product_type === "clips" ? "reel" : "p"}/${node.shortcode}/`,
-  }));
-  return { id: user.id, isPrivate: user.is_private, followedByViewer: user.followed_by_viewer, posts };
-}
+export class RateLimited extends Error {}
 
-/** Active stories for a user id as [{ id, ts, url }]. Does not mark them seen. */
-export async function stories(page, userId, handle) {
-  const body = await get(page, `/api/v1/feed/reels_media/?reel_ids=${encodeURIComponent(userId)}`);
-  const reel = body?.reels?.[userId] ?? body?.reels_media?.find((r) => String(r.id) === String(userId));
-  return (reel?.items ?? []).map((it) => ({
-    id: `story:${it.pk ?? it.id}`,
-    ts: it.taken_at * 1000,
-    url: `https://www.instagram.com/stories/${handle}/`,
-  }));
+/**
+ * Open a profile page the way a person would and read the data the page
+ * itself loads: newest posts and Reels, and the time of the latest story
+ * (seen from the profile, so the story is never opened or marked viewed).
+ */
+export async function profile(page, handle) {
+  const bodies = [];
+  let limited = false;
+  const onResponse = async (res) => {
+    const url = res.url();
+    if (!/instagram\.com\/(graphql|api)\//.test(url)) return;
+    if (res.status() === 429) limited = true;
+    if (!(res.headers()["content-type"] ?? "").includes("json")) return;
+    try {
+      bodies.push(await res.json());
+    } catch {
+      // Body not available (redirect or aborted); ignore.
+    }
+  };
+  page.on("response", onResponse);
+  try {
+    const res = await page.goto(`https://www.instagram.com/${encodeURIComponent(handle)}/`, { waitUntil: "domcontentloaded" });
+    if (res?.status() === 429) limited = true;
+    if (page.url().includes("/accounts/login")) throw new LoggedOut("redirected to login");
+    await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
+    // Data embedded in the page HTML itself.
+    const embedded = await page.$$eval('script[type="application/json"]', (els) => els.map((e) => e.textContent));
+    for (const text of embedded) {
+      try {
+        bodies.push(JSON.parse(text));
+      } catch {
+        // Not JSON; skip.
+      }
+    }
+  } finally {
+    page.off("response", onResponse);
+  }
+  if (limited) throw new RateLimited(`rate limited on @${handle}`);
+  const p = readProfile(bodies, handle);
+  if (!p.id && p.posts.length === 0) throw new Error(`no profile data found for @${handle}`);
+  return p;
 }
 
 /** The inbox list, fetched once per run. Never opens a thread. */

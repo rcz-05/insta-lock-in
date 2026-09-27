@@ -5,7 +5,7 @@
 import { readFileSync, writeFileSync, existsSync, chmodSync } from "node:fs";
 import { loadConfig, openBrowser, alert, log, pause, SESSION, STATE } from "./src/setup.js";
 import { emptyState, diff, unlockBodies } from "./src/detect.js";
-import { profile, stories, inbox, messagesFrom, LoggedOut } from "./src/instagram.js";
+import { profile, inbox, messagesFrom, LoggedOut, RateLimited } from "./src/instagram.js";
 
 const dryRun = process.argv.includes("--dry-run");
 const cfg = loadConfig();
@@ -35,17 +35,20 @@ try {
   // Every account we need a profile for, in random order, spaced out.
   const accounts = [...new Set([...cfg.postHandles, ...cfg.storyHandles])].sort(() => Math.random() - 0.5);
   for (const handle of accounts) {
-    await pause(4000, 10000);
+    // Spaced out like someone tapping through a few profiles.
+    await pause(15000, 45000);
     try {
       const p = await profile(page, handle);
-      if (p.isPrivate && !p.followedByViewer) log(`@${handle} is private and you do not follow them`);
       if (cfg.postHandles.includes(handle)) track("post", handle, p.posts);
-      if (cfg.storyHandles.includes(handle)) {
-        await pause(2000, 5000);
-        track("story", handle, await stories(page, p.id, handle));
-      }
+      if (cfg.storyHandles.includes(handle)) track("story", handle, p.stories);
     } catch (err) {
       if (err instanceof LoggedOut) throw err;
+      if (err instanceof RateLimited) {
+        // Stop at once; pushing on is what gets accounts flagged.
+        log(`${err.message}; stopping this run early`);
+        exitCode = 1;
+        break;
+      }
       log(`skipped @${handle}: ${err.message}`);
       exitCode = 1;
     }
