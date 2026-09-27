@@ -1,0 +1,21 @@
+name = "insta-lock-in"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# Create with: npx wrangler kv namespace create LOCK_KV
+# then paste the id it prints below.
+[[kv_namespaces]]
+binding = "LOCK_KV"
+id = "REPLACE_WITH_KV_ID"
+
+# The shared secret is NOT stored here. Set it with:
+#   npx wrangler secret put TOKEN
+
+[vars]
+POST_CAP_MIN = "15"
+REEL_BASE_MIN = "10"
+REEL_PER_ITEM_MIN = "1"
+POST_REQUIRED = "view,like,comment"
+REEL_REQUIRED = "watched,replied"
+POST_NAG_MIN = "5"
+REEL_NAG_MIN = "2,3"
