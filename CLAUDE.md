@@ -24,7 +24,7 @@ Planning happened in a Claude (Cowork) session on 2026-09-27. Decisions below ar
 Plan these into step 5 (Mac checker) and the Worker before building it. Details still to confirm with Rayan.
 
 - A list of people instead of one person. Rayan picks the handles; they live in `checker/.env` (gitignored), never in git or chat logs if avoidable.
-- People list: new posts, profile Reels and new Stories unlock. Messages (`dm`) count from one person only. Confirm with Rayan at step 5 whether stories also come from that one person or from the whole list.
+- People list: new posts and profile Reels unlock. Stories unlock only for her and one other person (Rayan will give that handle later). Messages (`dm`) count from one person only.
 - Stories: detect that a new story exists without opening it, so Rayan never shows up as a viewer from the checker.
 - DMs: read the inbox list preview only. Opening a thread on web marks it Seen, so the checker must never open threads.
 - Wording: messages say "her" today (`describe()` and `ask()` in `logic.js`); switch to naming the person once there are several.
@@ -37,7 +37,7 @@ Plan these into step 5 (Mac checker) and the Worker before building it. Details 
 | 1. Worker and state (`/status`, `/unlock`, `/done`, `/lock`, `/state`) | Done, deployed 2026-09-27, live cycle verified with curl |
 | 2. Bark pushes and cron nag loop | Done, deployed, Lock Screen delivery confirmed |
 | 3. Shortcuts gate on iPhone | Done 2026-09-27; locked bounces Home, unlocked stays open, both verified on Rayan's phone |
-| 4. Checklist page (`GET /checklist`) | Todo |
+| 4. Checklist page (`GET /checklist`) | Done, deployed; waiting on Rayan to try it from a reminder |
 | 5. Mac checker (Playwright) | Todo; needs her handle and the DM thread URL from Rayan |
 | 6. launchd schedule | Todo |
 | 7. Hardening (heartbeat, Screen Time web block) | Todo |
@@ -57,7 +57,8 @@ Plan these into step 5 (Mac checker) and the Worker before building it. Details 
 
 ```
 worker/src/logic.js     pure state machine, no I/O (readConfig, unlock, status, check, enforceCap, forceLock)
-worker/src/index.js     routes, token auth (constant time compare), KV load/save
+worker/src/index.js     routes, token auth (constant time compare), KV load/save, Bark pushes, cron
+worker/src/checklist.js checklist page HTML (pure; viewing it never starts the clock)
 worker/test/            node:test suites; run `npm test` in worker/
 worker/wrangler.toml    KV binding and caps/checklist vars
 docs/PLAN.md            full architecture plan
@@ -65,9 +66,9 @@ docs/PLAN.md            full architecture plan
 
 Conventions: plain JavaScript ES modules, no build step, no runtime dependencies. Keep logic pure in `logic.js` and test it there with a fixed clock (epoch ms). Add route tests in `routes.test.js` with the in memory KV stub. One logical change per commit.
 
-## Next step (step 4)
+## Next step (step 5)
 
-Checklist page: `GET /checklist?t=<token>` served by the Worker, listing the current items and a checkbox per required action; submitting POSTs `/done`. Nag pushes already link to it (Bark `url`). Keep it a single inline HTML page, no build step.
+Mac checker: Playwright on the MacBook with a saved Instagram session (`checker/session.json`, gitignored), run by launchd every 20 minutes. It visits each profile on the people list for new posts and Reels, checks for a new story on the two story accounts without opening it, reads only the inbox list preview for the one DM person (never open a thread: that marks it Seen), and POSTs `/unlock` with `reason` post, story or dm and `from` set. Ask Rayan before logging in or touching his account. Needs from him: the handles, the story second person, the DM person.
 
 The gate on the phone (step 3) is: automation "Instagram is opened", Run Immediately; Get Contents of URL `/status` with header `X-Token`; Get Value for `state` (type Text); If is `locked`: Show Notification, Go to Home Screen. `nag()`, `finalPush()` and `unlockPush()` live in `logic.js`; `tick()` and `notify()` in `index.js` take an injectable `fetch` for tests.
 

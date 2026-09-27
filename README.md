@@ -27,7 +27,7 @@ Instagram ──reads──> Mac checker ──POST /unlock──> Cloudflare Wo
 - [x] Step 1: Worker and state (`/status`, `/unlock`, `/done`, `/state`), deployed to Cloudflare
 - [x] Step 2: Bark pushes and the cron nag loop
 - [x] Step 3: Shortcuts gate on the iPhone
-- [ ] Step 4: Checklist page
+- [x] Step 4: Checklist page
 - [ ] Step 5: Mac checker (Playwright)
 - [ ] Step 6: launchd schedule
 - [ ] Step 7: Hardening
@@ -38,7 +38,8 @@ Instagram ──reads──> Mac checker ──POST /unlock──> Cloudflare Wo
 ```
 worker/
   src/logic.js     pure state machine (no I/O), fully unit tested
-  src/index.js     HTTP routes, auth, KV storage
+  src/index.js     HTTP routes, auth, KV storage, pushes, cron
+  src/checklist.js checklist page HTML
   test/            node:test suites
   wrangler.toml    Worker config (caps, required actions)
 ```
@@ -59,6 +60,7 @@ All requests need the shared secret, either as header `X-Token: <token>` or quer
 | GET | `/status` | Shortcuts gate | Returns `{ open, state, message, minutes_left }`. First call after an unlock starts the session clock. |
 | POST | `/unlock` | Mac checker | Body `{ reason: "post", "story" or "dm", items: [{ id, url?, from? }] }`. Ignores ids it has seen before. Sends an "Instagram unlocked" push. |
 | POST | `/done` | Checklist page | Body `{ checked: ["view", "like"] }`. Relocks once every required action is ticked. |
+| GET | `/checklist` | You, from a reminder | Page with the items and a checkbox per action. Done posts `/done`. Viewing it never starts the clock. |
 | GET | `/state` | You, for debugging | Full state record. |
 | POST | `/lock` | You, for emergencies | Forces the state back to locked. |
 
