@@ -38,7 +38,7 @@ Plan these into step 5 (Mac checker) and the Worker before building it. Details 
 | 2. Bark pushes and cron nag loop | Done, deployed, Lock Screen delivery confirmed |
 | 3. Shortcuts gate on iPhone | Done 2026-09-27; locked bounces Home, unlocked stays open, both verified on Rayan's phone |
 | 4. Checklist page (`GET /checklist`) | Done, deployed; waiting on Rayan to try it from a reminder |
-| 5. Mac checker (Playwright) | Todo; needs her handle and the DM thread URL from Rayan |
+| 5. Mac checker (Playwright) | Built, 6 tests passing; waiting on Rayan to fill `checker/.env` and log in with `npm run login` |
 | 6. launchd schedule | Todo |
 | 7. Hardening (heartbeat, Screen Time web block) | Todo |
 | 8. Full cycle test | Todo |
@@ -61,6 +61,10 @@ worker/src/index.js     routes, token auth (constant time compare), KV load/save
 worker/src/checklist.js checklist page HTML (pure; viewing it never starts the clock)
 worker/test/            node:test suites; run `npm test` in worker/
 worker/wrangler.toml    KV binding and caps/checklist vars
+checker/check.js        one checker run (`npm run check`, `npm run dry` prints without unlocking)
+checker/login.js        one time visible login that saves checker/session.json
+checker/src/detect.js   pure baseline and diff logic, tested in checker/test/
+checker/src/instagram.js read only Instagram web API calls (profile, stories, inbox list)
 docs/PLAN.md            full architecture plan
 ```
 
