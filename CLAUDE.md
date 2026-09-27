@@ -23,7 +23,7 @@ Planning happened in a Claude (Cowork) session on 2026-09-27. Decisions below ar
 | Step | State |
 | --- | --- |
 | 1. Worker and state (`/status`, `/unlock`, `/done`, `/lock`, `/state`) | Done, deployed 2026-09-27, live cycle verified with curl |
-| 2. ntfy pushes and cron nag loop | Next |
+| 2. ntfy pushes and cron nag loop | Done, deployed, 33 tests passing; waiting on Rayan to subscribe on iPhone and confirm the test push |
 | 3. Shortcuts gate on iPhone | Todo (Rayan does it on the phone; give exact steps) |
 | 4. Checklist page (`GET /checklist`) | Todo |
 | 5. Mac checker (Playwright) | Todo; needs her handle and the DM thread URL from Rayan |
@@ -36,6 +36,7 @@ Planning happened in a Claude (Cowork) session on 2026-09-27. Decisions below ar
 - Cloudflare account id: `f5c3178b0fbde14313e6eefc984feaaf`.
 - KV namespace `insta-lock-in-LOCK_KV` already exists, id `81eb575709fc4ea9b56b9aa702efd710`, already set in `worker/wrangler.toml`.
 - Worker is live at `https://insta-lock-in.rayancaszou.workers.dev`. Redeploy from `worker/` with `npx wrangler deploy`. The `TOKEN` secret is set; its value is in `.secrets/token` (read it inside commands, never print it).
+- ntfy topic is the `NTFY_TOPIC` secret; its value is in `.secrets/ntfy_topic` (never commit or print it). The cron runs every minute.
 - Without the `TOKEN` secret the Worker refuses every request except `GET /` (safe by default).
 - `.secrets/` and `checker/session.json` are gitignored. Never commit tokens, the Instagram session, or her handle.
 - GitHub remote: https://github.com/rcz-05/insta-lock-in (private). It may still be empty; if so, push `main` to it.
@@ -52,13 +53,9 @@ docs/PLAN.md            full architecture plan
 
 Conventions: plain JavaScript ES modules, no build step, no runtime dependencies. Keep logic pure in `logic.js` and test it there with a fixed clock (epoch ms). Add route tests in `routes.test.js` with the in memory KV stub. One logical change per commit.
 
-## Next step (step 2) in detail
+## Next step (step 3)
 
-- Add `nag(state, cfg, now)` to `logic.js`: in `session`, if `now - last_nag >= interval` return a message and update `last_nag` and `nag_count`. Posts use `POST_NAG_MIN` (5); Reels alternate `REEL_NAG_MIN` (2,3) by `nag_count`. Text includes minutes left and what is still unticked.
-- On cap relock and on checklist relock, emit a final "Done. Delete Instagram now." push.
-- Add a `scheduled` handler in `index.js` that loads state, runs `enforceCap` then `nag`, saves, and POSTs to `https://ntfy.sh/${NTFY_TOPIC}` with headers Title, Priority, and `Actions: view, Open checklist, <worker>/checklist?t=<token>`.
-- `NTFY_TOPIC` and the public Worker URL become secrets or vars; add `[triggers] crons = ["* * * * *"]` to `wrangler.toml`.
-- Test with an injected fake `fetch`.
+Shortcuts gate on the iPhone, done by Rayan with tap by tap steps: automation App, Instagram, Is Opened, Run Immediately; Get Contents of URL `/status` with header `X-Token`; Get Dictionary Value `state`; if `locked`, Show Notification then Go to Home Screen; otherwise Show Notification with `message`. Step 2 notes: `nag()` and `finalPush()` live in `logic.js`; `tick()` in `index.js` is the cron body and takes an injectable `fetch` for tests.
 
 ## Working with Rayan
 
