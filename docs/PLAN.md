@@ -32,9 +32,9 @@ The official Instagram API cannot help: it only works for Business or Creator ac
 Three states: `locked` (default, gate sends you Home), `unlocked` (something new from her, clock not started), `session` (clock running, nags firing). Unlock only from her activity; relock from the checklist or the time cap.
 
 1. Gate instead of delete. Blocks instantly whether installed or not.
-2. Hard time cap per session. Post: 15 min. Reels: 10 min plus 1 min per Reel. Cap relocks even if the checklist is ignored. This is what cuts screen hours.
+2. Hard time cap per session. Post: 30 min. Story or message: 10 min. Cap relocks even if the checklist is ignored. This is what cuts screen hours.
 3. Scoped unlocks. Each unlock names exactly what it is for; the checklist lists those items.
-4. Configurable checklist. Posts: view, like, comment. Reels: watched, replied. Can require just one via config.
+4. Configurable checklist. Posts: view, like, comment. Stories: watched. Messages: watched, replied. Can require just one via config.
 
 ## Architecture
 
@@ -73,11 +73,11 @@ When the Mac is asleep nothing unlocks. That is fine: default is locked.
 
 ## Reminder loop
 
-| Setting | Posts | Reels |
+| Setting | Posts | Stories and messages |
 | --- | --- | --- |
-| Nag interval | 5 min | alternates 2 and 3 min |
-| Time cap | 15 min | 10 min plus 1 per Reel |
-| Nag text | "Seen her post? Liked? Commented? Tick it and close the app." | "Watched all 4 Reels? Replied? Tick it and close the app." |
+| Nag interval | 10 min | 5 min |
+| Time cap | 30 min | 10 min |
+| Nag text | "Seen her post? Liked? Commented? Tick it and close the app." | "Seen what she sent? Replied? Tick it and close the app." |
 | Final push | "Done. Instagram is locked again." (cap: "Time is up. Instagram is locked again.") | same |
 
 Bark push format:
