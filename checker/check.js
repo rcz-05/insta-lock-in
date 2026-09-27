@@ -1,6 +1,6 @@
 // One checker run: look at the watched accounts, find what is new since last
 // time, and ask the Worker to unlock. `--dry-run` prints what it would unlock
-// and saves nothing.
+// and saves nothing. `--dm-only` skips profiles and only reads the inbox list.
 
 import { readFileSync, writeFileSync, existsSync, chmodSync } from "node:fs";
 import { loadConfig, openBrowser, alert, log, pause, SESSION, STATE } from "./src/setup.js";
@@ -8,6 +8,7 @@ import { emptyState, diff, unlockBodies } from "./src/detect.js";
 import { profile, inbox, messagesFrom, LoggedOut, RateLimited } from "./src/instagram.js";
 
 const dryRun = process.argv.includes("--dry-run");
+const dmOnly = process.argv.includes("--dm-only");
 const cfg = loadConfig();
 if (!existsSync(SESSION)) {
   log("No session yet. Run: npm run login");
@@ -33,7 +34,7 @@ try {
   if (page.url().includes("/accounts/login")) throw new LoggedOut("redirected to login");
 
   // Every account we need a profile for, in random order, spaced out.
-  const accounts = [...new Set([...cfg.postHandles, ...cfg.storyHandles])].sort(() => Math.random() - 0.5);
+  const accounts = dmOnly ? [] : [...new Set([...cfg.postHandles, ...cfg.storyHandles])].sort(() => Math.random() - 0.5);
   for (const handle of accounts) {
     // Spaced out like someone tapping through a few profiles.
     await pause(15000, 45000);
