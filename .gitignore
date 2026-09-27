@@ -7,3 +7,6 @@ node_modules/
 checker/session.json
 checker/.env
 .secrets/
+# Checker runtime files: what it has already seen, and its logs.
+checker/state.json
+checker/*.log

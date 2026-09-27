@@ -1,0 +1,100 @@
+// One checker run: look at the watched accounts, find what is new since last
+// time, and ask the Worker to unlock. `--dry-run` prints what it would unlock
+// and saves nothing.
+
+import { readFileSync, writeFileSync, existsSync, chmodSync } from "node:fs";
+import { loadConfig, openBrowser, alert, log, pause, SESSION, STATE } from "./src/setup.js";
+import { emptyState, diff, unlockBodies } from "./src/detect.js";
+import { profile, stories, messagesFrom, LoggedOut } from "./src/instagram.js";
+
+const dryRun = process.argv.includes("--dry-run");
+const cfg = loadConfig();
+if (!existsSync(SESSION)) {
+  log("No session yet. Run: npm run login");
+  process.exit(2);
+}
+
+let state = existsSync(STATE) ? JSON.parse(readFileSync(STATE, "utf8")) : emptyState();
+const found = []; // [{ kind, handle, items }]
+const now = Date.now();
+
+function track(kind, handle, items) {
+  const r = diff(state, `${kind}:${handle}`, items, now);
+  state = r.state;
+  if (r.fresh.length) found.push({ kind, handle, items: r.fresh });
+  log(`${kind} @${handle}: ${items.length} seen, ${r.fresh.length} new`);
+}
+
+const { browser, context } = await openBrowser({ headless: true });
+let exitCode = 0;
+try {
+  const page = await context.newPage();
+  await page.goto("https://www.instagram.com/", { waitUntil: "domcontentloaded" });
+  if (page.url().includes("/accounts/login")) throw new LoggedOut("redirected to login");
+
+  // Every account we need a profile for, in random order, spaced out.
+  const accounts = [...new Set([...cfg.postHandles, ...cfg.storyHandles])].sort(() => Math.random() - 0.5);
+  for (const handle of accounts) {
+    await pause(4000, 10000);
+    try {
+      const p = await profile(page, handle);
+      if (p.isPrivate && !p.followedByViewer) log(`@${handle} is private and you do not follow them`);
+      if (cfg.postHandles.includes(handle)) track("post", handle, p.posts);
+      if (cfg.storyHandles.includes(handle)) {
+        await pause(2000, 5000);
+        track("story", handle, await stories(page, p.id, handle));
+      }
+    } catch (err) {
+      if (err instanceof LoggedOut) throw err;
+      log(`skipped @${handle}: ${err.message}`);
+      exitCode = 1;
+    }
+  }
+
+  if (cfg.dmHandle) {
+    await pause(3000, 8000);
+    track("dm", cfg.dmHandle, await messagesFrom(page, cfg.dmHandle));
+  }
+
+  // Keep the session fresh for next time.
+  if (!dryRun) {
+    await context.storageState({ path: SESSION });
+    chmodSync(SESSION, 0o600);
+  }
+} catch (err) {
+  if (err instanceof LoggedOut) {
+    log(`Instagram session expired: ${err.message}`);
+    if (!dryRun) await alert(cfg, "Checker logged out", "Instagram logged the checker out. Run npm run login on the Mac.");
+    exitCode = 3;
+  } else {
+    log(`run failed: ${err.stack ?? err.message}`);
+    exitCode = 1;
+  }
+} finally {
+  await browser.close();
+}
+
+if (exitCode === 3) process.exit(exitCode);
+
+const bodies = unlockBodies(found);
+if (dryRun) {
+  log(`dry run: would unlock ${JSON.stringify(bodies)}`);
+  process.exit(exitCode);
+}
+
+// Only remember new items once the Worker has them, so a failed unlock retries.
+for (const body of bodies) {
+  const r = await fetch(`${cfg.workerUrl}/unlock`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-token": cfg.token },
+    body: JSON.stringify(body),
+  }).catch((err) => ({ ok: false, status: err.message }));
+  if (!r.ok) {
+    log(`unlock failed for ${body.reason}: ${r.status}`);
+    process.exit(1);
+  }
+  log(`unlocked ${body.reason}: ${JSON.stringify(await r.json())}`);
+}
+writeFileSync(STATE, JSON.stringify(state, null, 2));
+log(bodies.length ? "done, unlocked" : "done, nothing new");
+process.exit(exitCode);
