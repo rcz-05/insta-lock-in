@@ -182,3 +182,35 @@ test("unlocking sends a push, a repeat unlock does not", async () => {
   assert.equal(push.title, "Instagram unlocked");
   assert.equal(push.body, "New post from Maya. Your 30 minutes start when you open Instagram.");
 });
+
+test("checklist page lists the actions without starting the clock", async () => {
+  const env = fakeEnv();
+  await handle(req("POST", "/unlock", { reason: "post", items: [{ id: "C1", url: "https://www.instagram.com/p/C1/", from: "<b>Maya</b>" }] }), env, T0);
+  const r = await handle(new Request("https://lock.example/checklist?t=secret-123"), env, T0 + MINUTE);
+  assert.equal(r.status, 200);
+  assert.match(r.headers.get("content-type"), /text\/html/);
+  assert.equal(r.headers.get("referrer-policy"), "no-referrer");
+  const html = await r.text();
+  for (const a of ["view", "like", "comment"]) assert.match(html, new RegExp(`value="${a}"`));
+  assert.match(html, /Your 30 minutes start when you open Instagram/);
+  assert.match(html, /href="https:\/\/www.instagram.com\/p\/C1\/"/);
+  assert.match(html, /&lt;b&gt;Maya&lt;\/b&gt;/);
+  assert.doesNotMatch(html, /secret-123/);
+  const s = await (await handle(req("GET", "/state"), env, T0 + MINUTE)).json();
+  assert.equal(s.state, "unlocked");
+});
+
+test("checklist page shows ticked items and the locked state", async () => {
+  const env = fakeEnv();
+  await handle(req("POST", "/unlock", { reason: "dm", items: [{ id: "M1" }] }), env, T0);
+  await handle(req("GET", "/status"), env, T0);
+  await handle(req("POST", "/done", { checked: ["watched"] }), env, T0 + MINUTE);
+  let html = await (await handle(new Request("https://lock.example/checklist?t=secret-123"), env, T0 + 2 * MINUTE)).text();
+  assert.match(html, /value="watched" checked disabled/);
+  assert.match(html, /Saw what she sent/);
+  assert.match(html, /8 min left/);
+  await handle(req("POST", "/done", { checked: ["replied"] }), env, T0 + 3 * MINUTE);
+  html = await (await handle(new Request("https://lock.example/checklist?t=secret-123"), env, T0 + 3 * MINUTE)).text();
+  assert.match(html, /Instagram is locked/);
+  assert.equal((await handle(new Request("https://lock.example/checklist"), env, T0)).status, 401);
+});

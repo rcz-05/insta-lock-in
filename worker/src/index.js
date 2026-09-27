@@ -12,6 +12,7 @@ import {
   finalPush,
   unlockPush,
 } from "./logic.js";
+import { renderChecklist } from "./checklist.js";
 
 const KEY = "state";
 
@@ -144,6 +145,19 @@ export async function handle(request, env, now = Date.now(), fetchFn = fetch) {
         s = forceLock(s, now);
         await saveState(env, s);
         return json({ state: s.state });
+      }
+      case "GET /checklist": {
+        // Viewing the page never starts the clock; it only applies the cap.
+        s = enforceCap(s, now);
+        await commit(env, prev, s, fetchFn);
+        return new Response(renderChecklist(s, now), {
+          headers: {
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store",
+            // The token is in the page URL; never send it on to Instagram links.
+            "referrer-policy": "no-referrer",
+          },
+        });
       }
       case "GET /state": {
         s = enforceCap(s, now);
