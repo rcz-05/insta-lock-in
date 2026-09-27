@@ -192,9 +192,10 @@ test("reel nag text counts the reels", () => {
 test("final push after checklist or cap, silent on manual lock", () => {
   const s = open(post);
   const done = check(s, { checked: ["view", "like", "comment"] }, T0 + MINUTE).state;
-  assert.equal(finalPush(s, done).body, "Done. Delete Instagram now.");
+  assert.equal(finalPush(s, done).body, "Done. Instagram is locked again.");
   const capped = enforceCap(s, T0 + 15 * MINUTE);
   assert.equal(finalPush(s, capped).title, "Time is up");
+  assert.equal(finalPush(s, capped).body, "Time is up. Instagram is locked again.");
   assert.equal(finalPush(s, forceLock(s, T0)), null);
   assert.equal(finalPush(initialState(), initialState()), null);
   assert.equal(finalPush(s, s), null);

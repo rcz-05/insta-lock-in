@@ -134,7 +134,7 @@ test("cron relocks at the cap and sends the final push", async () => {
   const sent = await tick(env, T0 + 11 * MINUTE, f);
   assert.equal(sent.length, 1);
   const last = JSON.parse(f.calls.at(-1).body);
-  assert.equal(last.body, "Done. Delete Instagram now.");
+  assert.equal(last.body, "Time is up. Instagram is locked again.");
   assert.equal(last.url, undefined);
   const s = await (await handle(req("GET", "/state"), env, T0 + 12 * MINUTE, f)).json();
   assert.equal(s.state, "locked");
@@ -149,7 +149,7 @@ test("finishing the checklist sends the final push", async () => {
   await handle(req("GET", "/status"), env, T0, f);
   await handle(req("POST", "/done", { checked: ["view", "like", "comment"] }), env, T0 + MINUTE, f);
   assert.equal(f.calls.length, 1);
-  assert.equal(JSON.parse(f.calls[0].body).body, "Done. Delete Instagram now.");
+  assert.equal(JSON.parse(f.calls[0].body).body, "Done. Instagram is locked again.");
 });
 
 test("no key means no pushes, and a failing push does not break routes", async () => {

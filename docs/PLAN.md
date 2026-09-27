@@ -78,7 +78,7 @@ When the Mac is asleep nothing unlocks. That is fine: default is locked.
 | Nag interval | 5 min | alternates 2 and 3 min |
 | Time cap | 15 min | 10 min plus 1 per Reel |
 | Nag text | "Seen her post? Liked? Commented? Tick it and close the app." | "Watched all 4 Reels? Replied? Tick it and close the app." |
-| Final push | "Done. Delete Instagram now." | same |
+| Final push | "Done. Instagram is locked again." (cap: "Time is up. Instagram is locked again.") | same |
 
 Bark push format:
 

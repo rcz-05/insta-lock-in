@@ -17,6 +17,18 @@ Planning happened in a Claude (Cowork) session on 2026-09-27. Decisions below ar
 - Detection runs on the MacBook: Playwright with a saved Instagram session, checking her profile and the DM thread with her every 20 minutes via launchd. Slow, home network only, never from a cloud server. Fallback: paste her post link.
 - Time cap per session: posts 15 min; Reels 10 min plus 1 per Reel. The clock starts on first open after an unlock. The cap relocks even if the checklist is ignored.
 - Items that already unlocked once never unlock again (`seen` list, capped at 200).
+- Instagram stays installed. The gate is the lock; pushes never tell Rayan to delete the app (changed 2026-09-27).
+
+## Requested scope, not built yet (from Rayan, 2026-09-27)
+
+Plan these into step 5 (Mac checker) and the Worker before building it. Details still to confirm with Rayan.
+
+- A list of people instead of one person. Rayan picks the handles; they live in `checker/.env` (gitignored), never in git or chat logs if avoidable.
+- Triggers per person: new posts, new Reels on their profile, new Stories, and Reels or messages they send him in DMs.
+- Stories: detect that a new story exists without opening it, so Rayan never shows up as a viewer from the checker.
+- DMs: read the inbox list preview only. Opening a thread on web marks it Seen, so the checker must never open threads.
+- Wording: messages say "her" today (`describe()` and `ask()` in `logic.js`); switch to naming the person once there are several.
+- Open question: a push the moment something unlocks ("New post from X. Your 15 minutes start when you open Instagram."). Today nothing tells Rayan an unlock happened.
 
 ## Status
 

@@ -270,7 +270,7 @@ export function finalPush(prev, next) {
   return {
     title: how === "cap" ? "Time is up" : "Checklist done",
     level: "timeSensitive",
-    body: "Done. Delete Instagram now.",
+    body: how === "cap" ? "Time is up. Instagram is locked again." : "Done. Instagram is locked again.",
     checklist: false,
   };
 }
