@@ -55,7 +55,7 @@ Worker endpoints (all need the shared secret as header `X-Token` or query `?t=`)
 | POST /done | Checklist page | records ticks; all required ticked relocks and sends the delete prompt |
 | Cron, every minute | Cloudflare | sends a nag if due, relocks at the cap, logs minutes (step 2) |
 
-Mac checker: Node or Python Playwright with a saved Instagram session file (not the password). Opens her profile, reads the newest /p/ or /reel/ link; opens the DM thread with her, reads new Reel shares; compares to last seen; calls /unlock only when something is new. launchd runs it every 20 minutes.
+Mac checker: Node or Python Playwright with a saved Instagram session file (not the password). Opens her profile, reads the newest /p/ or /reel/ link; opens the DM thread with her, reads new Reel shares; compares to last seen; calls /unlock only when something is new. launchd runs it every 12 hours.
 
 iPhone: no custom app. Two Shortcuts automations (Instagram opened, Instagram closed), the Bark app with its private device key, and a Home Screen bookmark to the checklist page.
 
@@ -98,7 +98,7 @@ The clock starts on first open after an unlock, not at the unlock. The "Instagra
 3. Shortcuts gate (30 min). Automation: App, Instagram, Is Opened, Run Immediately. Get Contents of URL /status with X-Token; Get Dictionary Value "state"; if "locked": Show Notification then Go to Home Screen; else Show Notification with "message".
 4. Checklist page (30 min). HTML served by the Worker; Done button POSTs /done. Add to Home Screen.
 5. Mac checker (60 to 90 min). Playwright, saved session, profile and DM thread checks, POST /unlock. Last seen values live in the Worker.
-6. Schedule (15 min). launchd plist in ~/Library/LaunchAgents, StartInterval 1200, log to a file.
+6. Schedule (15 min). launchd plist in ~/Library/LaunchAgents, StartCalendarInterval at 9:00 and 21:00 (every 12 hours), log to a file.
 7. Hardening (20 min). See below.
 8. Full cycle test (20 min).
 

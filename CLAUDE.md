@@ -14,7 +14,7 @@ Planning happened in a Claude (Cowork) session on 2026-09-27. Decisions below ar
 - The lock is a gate on open, not deletion: an iOS Shortcuts automation ("Instagram is opened", Run Immediately) calls `GET /status` and runs Go to Home Screen when locked.
 - State lives in a Cloudflare Worker with KV. Single JSON record, key `state`.
 - Push reminders go through Bark (free iOS app, api.day.app, straight to Apple push), sent by a Worker cron that runs every minute. Switched from ntfy on 2026-09-27: ntfy's iPhone relay never showed banners on Rayan's phone (known ntfy bug), Bark did on the first try.
-- Detection runs on the MacBook: Playwright with a saved Instagram session, checking her profile and the DM thread with her every 20 minutes via launchd. Slow, home network only, never from a cloud server. Fallback: paste her post link.
+- Detection runs on the MacBook: Playwright with a saved Instagram session (`checker/`). Runs every 12 hours (changed 2026-09-27 from 20 minutes, to keep the account safe): launchd `StartCalendarInterval` at 9:00 and 21:00, so a run missed while the Mac sleeps happens on wake. Slow, home network only, never from a cloud server.
 - Unlock kinds (changed 2026-09-27): `post` (a post or Reel on her profile) gets 30 min with a nag every 10 min; `story` and `dm` (a message or Reel she sends) get a flat 10 min with a nag every 5 min. The clock starts on first open after an unlock. The cap relocks even if the checklist is ignored. Something new during an open session gets at least its full time from that moment; a mixed window nags on the shortest interval.
 - Items that already unlocked once never unlock again (`seen` list, capped at 200).
 - Instagram stays installed. The gate is the lock; pushes never tell Rayan to delete the app (changed 2026-09-27).
@@ -72,7 +72,7 @@ Conventions: plain JavaScript ES modules, no build step, no runtime dependencies
 
 ## Next step (step 5)
 
-Mac checker: Playwright on the MacBook with a saved Instagram session (`checker/session.json`, gitignored), run by launchd every 20 minutes. It visits each profile on the people list for new posts and Reels, checks for a new story on the two story accounts without opening it, reads only the inbox list preview for the one DM person (never open a thread: that marks it Seen), and POSTs `/unlock` with `reason` post, story or dm and `from` set. Ask Rayan before logging in or touching his account. Needs from him: the handles, the story second person, the DM person.
+Mac checker: Playwright on the MacBook with a saved Instagram session (`checker/session.json`, gitignored), run by launchd every 12 hours. It visits each profile on the people list for new posts and Reels, checks for a new story on the two story accounts without opening it, reads only the inbox list preview for the one DM person (never open a thread: that marks it Seen), and POSTs `/unlock` with `reason` post, story or dm and `from` set. Ask Rayan before logging in or touching his account. Needs from him: the handles, the story second person, the DM person.
 
 The gate on the phone (step 3) is: automation "Instagram is opened", Run Immediately; Get Contents of URL `/status` with header `X-Token`; Get Value for `state` (type Text); If is `locked`: Show Notification, Go to Home Screen. `nag()`, `finalPush()` and `unlockPush()` live in `logic.js`; `tick()` and `notify()` in `index.js` take an injectable `fetch` for tests.
 
