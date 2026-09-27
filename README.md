@@ -2,14 +2,14 @@
 
 Keeps Instagram locked on my iPhone until one specific person posts or sends me Reels. When she does, Instagram opens for a short, capped session, I get nagged until I confirm a checklist, then it locks again.
 
-Everything is free: an iOS Shortcuts gate, a Cloudflare Worker that holds the lock state, ntfy for push reminders, and a Playwright checker on my Mac.
+Everything is free: an iOS Shortcuts gate, a Cloudflare Worker that holds the lock state, Bark for push reminders, and a Playwright checker on my Mac.
 
 ```
 Instagram ──reads──> Mac checker ──POST /unlock──> Cloudflare Worker (state in KV)
                                                         │
                               status, nags, done        │
              ┌──────────────────────┬───────────────────┴───────┐
-        Shortcuts gate          ntfy app                 Checklist page
+        Shortcuts gate          Bark app                 Checklist page
    (on open: GET /status,   (nags every 2 to 5 min)   (tick items, POST /done)
     locked: go Home)
 ```
@@ -25,7 +25,7 @@ Instagram ──reads──> Mac checker ──POST /unlock──> Cloudflare Wo
 ## Progress
 
 - [x] Step 1: Worker and state (`/status`, `/unlock`, `/done`, `/state`), deployed to Cloudflare
-- [x] Step 2: ntfy pushes and the cron nag loop
+- [x] Step 2: Bark pushes and the cron nag loop
 - [ ] Step 3: Shortcuts gate on the iPhone
 - [ ] Step 4: Checklist page
 - [ ] Step 5: Mac checker (Playwright)

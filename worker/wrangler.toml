@@ -9,9 +9,9 @@ id = "81eb575709fc4ea9b56b9aa702efd710"
 
 # Secrets are NOT stored here. Set them with:
 #   npx wrangler secret put TOKEN        < ../.secrets/token
-#   npx wrangler secret put NTFY_TOPIC   < ../.secrets/ntfy_topic
+#   npx wrangler secret put BARK_KEY     < ../.secrets/bark_key
 
-# Cron: every minute, relock at the cap and send nags through ntfy.
+# Cron: every minute, relock at the cap and send nags through Bark.
 [triggers]
 crons = ["* * * * *"]
 

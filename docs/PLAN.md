@@ -8,7 +8,7 @@ Build a free "gate" instead of a delete and reinstall cycle. Instagram stays loc
 
 iOS does not let any app delete, block, or detect installs of another app for free, and it cannot see likes or comments. So the lock happens at the moment Instagram opens (an iOS Shortcuts automation that sends you to the Home Screen), the cycle state lives on a tiny free server, and detection of your own actions is replaced by a checklist you confirm. Deleting the app becomes optional.
 
-Target: about 4 hours, $0. iOS Shortcuts, a Cloudflare Worker (free tier), the ntfy app for push, and a Playwright script on the MacBook.
+Target: about 4 hours, $0. iOS Shortcuts, a Cloudflare Worker (free tier), the Bark app for push (ntfy at first; see step 2), and a Playwright script on the MacBook.
 
 ## What iOS allows
 
@@ -22,7 +22,7 @@ The only real app blocking API on iPhone is Apple's Screen Time framework (Famil
 | Know she posted | Not from the phone | Mac script checks her profile logged in as you |
 | Know she sent a Reel | Not from the phone | Same Mac script reads the DM thread with her |
 | Know you liked, viewed, commented | No | Checklist you confirm |
-| Nag every few minutes | Not with Shortcuts alone | Worker cron sends pushes through ntfy |
+| Nag every few minutes | Not with Shortcuts alone | Worker cron sends pushes through Bark |
 | Block instagram.com in Safari | Yes | Screen Time, Content Restrictions, Never Allow |
 
 The official Instagram API cannot help: it only works for Business or Creator accounts, Basic Display was shut down in 2025, and personal DMs are never exposed.
@@ -42,7 +42,7 @@ Three states: `locked` (default, gate sends you Home), `unlocked` (something new
 Instagram ──reads──> Mac checker ──POST /unlock──> Cloudflare Worker (state in KV)
                                                         │  status, nags, done
              ┌──────────────────────┬───────────────────┴───────┐
-        Shortcuts gate          ntfy app                 Checklist page
+        Shortcuts gate          Bark app                 Checklist page
 ```
 
 Worker endpoints (all need the shared secret as header `X-Token` or query `?t=`):
@@ -57,7 +57,7 @@ Worker endpoints (all need the shared secret as header `X-Token` or query `?t=`)
 
 Mac checker: Node or Python Playwright with a saved Instagram session file (not the password). Opens her profile, reads the newest /p/ or /reel/ link; opens the DM thread with her, reads new Reel shares; compares to last seen; calls /unlock only when something is new. launchd runs it every 20 minutes.
 
-iPhone: no custom app. Two Shortcuts automations (Instagram opened, Instagram closed), the ntfy app on a private topic, and a Home Screen bookmark to the checklist page.
+iPhone: no custom app. Two Shortcuts automations (Instagram opened, Instagram closed), the Bark app with its private device key, and a Home Screen bookmark to the checklist page.
 
 ## Detection options
 
@@ -80,15 +80,13 @@ When the Mac is asleep nothing unlocks. That is fine: default is locked.
 | Nag text | "Seen her post? Liked? Commented? Tick it and close the app." | "Watched all 4 Reels? Replied? Tick it and close the app." |
 | Final push | "Done. Delete Instagram now." | same |
 
-ntfy push format:
+Bark push format:
 
 ```
-POST https://ntfy.sh/<private-topic>
-Title: Instagram check
-Priority: high
-Actions: view, Open checklist, https://<worker>/checklist?t=<token>
-
-Seen her post? Liked? Commented? 9 minutes left.
+POST https://api.day.app/push
+{ "device_key": "<key>", "title": "Instagram check", "level": "timeSensitive",
+  "group": "insta-lock-in", "url": "https://<worker>/checklist?t=<token>",
+  "body": "Seen her post? Liked? Commented? Tick it and close the app. 9 min left." }
 ```
 
 The clock starts on first open after an unlock, not at the unlock. The "Instagram opened" automation also shows a banner with minutes left.
@@ -96,7 +94,7 @@ The clock starts on first open after an unlock, not at the unlock. The "Instagra
 ## Build plan
 
 1. Worker and state (45 min). DONE.
-2. ntfy (10 min). Install ntfy on iPhone, subscribe to a long random topic. Add cron `* * * * *` and nag logic.
+2. Push (10 min). Install Bark on iPhone and store its device key as a secret. (ntfy was tried first; its iPhone relay never showed banners.) Add cron `* * * * *` and nag logic.
 3. Shortcuts gate (30 min). Automation: App, Instagram, Is Opened, Run Immediately. Get Contents of URL /status with X-Token; Get Dictionary Value "state"; if "locked": Show Notification then Go to Home Screen; else Show Notification with "message".
 4. Checklist page (30 min). HTML served by the Worker; Done button POSTs /done. Add to Home Screen.
 5. Mac checker (60 to 90 min). Playwright, saved session, profile and DM thread checks, POST /unlock. Last seen values live in the Worker.

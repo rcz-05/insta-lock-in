@@ -40,7 +40,7 @@ test("no TOKEN secret means everything is refused", async () => {
   assert.equal((await handle(req("GET", "/status", null, ""), env, T0)).status, 401);
 });
 
-test("token in query works for links from ntfy and Safari", async () => {
+test("token in query works for links from pushes and Safari", async () => {
   const r = await handle(new Request("https://lock.example/status?t=secret-123"), fakeEnv(), T0);
   assert.equal(r.status, 200);
 });
@@ -89,7 +89,7 @@ test("manual lock works", async () => {
   assert.equal(r.state, "locked");
 });
 
-// Records every push instead of calling ntfy.
+// Records every push instead of calling Bark.
 function fakeFetch() {
   const calls = [];
   const fn = async (url, init) => {
@@ -101,7 +101,7 @@ function fakeFetch() {
 }
 
 const pushEnv = () =>
-  fakeEnv({ NTFY_TOPIC: "topic-abc", WORKER_URL: "https://lock.example/" });
+  fakeEnv({ BARK_KEY: "key-abc", WORKER_URL: "https://lock.example/" });
 
 test("cron nags on schedule with a checklist action", async () => {
   const env = pushEnv();
@@ -113,12 +113,15 @@ test("cron nags on schedule with a checklist action", async () => {
   assert.equal(sent.length, 1);
   assert.equal(f.calls.length, 1);
   const call = f.calls[0];
-  assert.equal(call.url, "https://ntfy.sh/topic-abc");
+  assert.equal(call.url, "https://api.day.app/push");
   assert.equal(call.method, "POST");
-  assert.equal(call.headers.Title, "Instagram check");
-  assert.equal(call.headers.Priority, "high");
-  assert.equal(call.headers.Actions, "view, Open checklist, https://lock.example/checklist?t=secret-123");
-  assert.match(call.body, /10 min left/);
+  const push = JSON.parse(call.body);
+  assert.equal(push.device_key, "key-abc");
+  assert.equal(push.title, "Instagram check");
+  assert.equal(push.level, "timeSensitive");
+  assert.equal(push.group, "insta-lock-in");
+  assert.equal(push.url, "https://lock.example/checklist?t=secret-123");
+  assert.match(push.body, /10 min left/);
   // Same minute again does not repeat the nag.
   assert.deepEqual(await tick(env, T0 + 5 * MINUTE + 30000, f), []);
 });
@@ -130,8 +133,9 @@ test("cron relocks at the cap and sends the final push", async () => {
   await handle(req("GET", "/status"), env, T0, f);
   const sent = await tick(env, T0 + 11 * MINUTE, f);
   assert.equal(sent.length, 1);
-  assert.equal(f.calls.at(-1).body, "Done. Delete Instagram now.");
-  assert.equal(f.calls.at(-1).headers.Actions, undefined);
+  const last = JSON.parse(f.calls.at(-1).body);
+  assert.equal(last.body, "Done. Delete Instagram now.");
+  assert.equal(last.url, undefined);
   const s = await (await handle(req("GET", "/state"), env, T0 + 12 * MINUTE, f)).json();
   assert.equal(s.state, "locked");
   assert.equal(s.log.at(-1).how, "cap");
@@ -145,10 +149,10 @@ test("finishing the checklist sends the final push", async () => {
   await handle(req("GET", "/status"), env, T0, f);
   await handle(req("POST", "/done", { checked: ["view", "like", "comment"] }), env, T0 + MINUTE, f);
   assert.equal(f.calls.length, 1);
-  assert.equal(f.calls[0].body, "Done. Delete Instagram now.");
+  assert.equal(JSON.parse(f.calls[0].body).body, "Done. Delete Instagram now.");
 });
 
-test("no topic means no pushes, and a failing ntfy does not break routes", async () => {
+test("no key means no pushes, and a failing push does not break routes", async () => {
   const quiet = fakeFetch();
   const env = fakeEnv();
   await handle(req("POST", "/unlock", { reason: "post", items: [{ id: "C1" }] }), env, T0, quiet);

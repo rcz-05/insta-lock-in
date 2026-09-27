@@ -252,7 +252,7 @@ export function nag(s, cfg, now) {
     state: { ...s, last_nag: now, nag_count: s.nag_count + 1 },
     message: {
       title: "Instagram check",
-      priority: "high",
+      level: "timeSensitive",
       body: `${todo.map((a) => ask(a, s)).join(" ")} Tick it and close the app. ${left} min left.`,
       checklist: true,
     },
@@ -269,7 +269,7 @@ export function finalPush(prev, next) {
   if (how !== "checklist" && how !== "cap") return null;
   return {
     title: how === "cap" ? "Time is up" : "Checklist done",
-    priority: "high",
+    level: "timeSensitive",
     body: "Done. Delete Instagram now.",
     checklist: false,
   };

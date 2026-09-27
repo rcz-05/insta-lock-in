@@ -50,21 +50,28 @@ function authorized(request, env) {
 }
 
 /**
- * Send one push through ntfy. Does nothing without NTFY_TOPIC. Never throws,
- * so a push failure cannot break a route or the cron. Returns true if sent.
+ * Send one push through Bark (Apple push, straight to the iPhone). Does nothing
+ * without BARK_KEY. Never throws, so a push failure cannot break a route or the
+ * cron. Tapping a nag opens the checklist. Returns true if sent.
  */
 export async function notify(env, msg, fetchFn = fetch) {
-  if (!msg || !env.NTFY_TOPIC) return false;
-  const headers = { Title: msg.title, Priority: msg.priority };
+  if (!msg || !env.BARK_KEY) return false;
+  const body = {
+    device_key: env.BARK_KEY,
+    title: msg.title,
+    body: msg.body,
+    group: "insta-lock-in",
+    level: msg.level,
+  };
   if (msg.checklist && env.WORKER_URL && env.TOKEN) {
     const base = env.WORKER_URL.replace(/\/+$/, "");
-    headers.Actions = `view, Open checklist, ${base}/checklist?t=${env.TOKEN}`;
+    body.url = `${base}/checklist?t=${env.TOKEN}`;
   }
   try {
-    const r = await fetchFn(`https://ntfy.sh/${env.NTFY_TOPIC}`, {
+    const r = await fetchFn("https://api.day.app/push", {
       method: "POST",
-      headers,
-      body: msg.body,
+      headers: { "content-type": "application/json; charset=utf-8" },
+      body: JSON.stringify(body),
     });
     return r.ok;
   } catch {
