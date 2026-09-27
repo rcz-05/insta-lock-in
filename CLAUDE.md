@@ -24,7 +24,7 @@ Planning happened in a Claude (Cowork) session on 2026-09-27. Decisions below ar
 Plan these into step 5 (Mac checker) and the Worker before building it. Details still to confirm with Rayan.
 
 - A list of people instead of one person. Rayan picks the handles; they live in `checker/.env` (gitignored), never in git or chat logs if avoidable.
-- People list: new posts and profile Reels unlock. Stories unlock only for her and one other person (Rayan will give that handle later). Messages (`dm`) count from one person only.
+- Accounts live in `checker/.env` (gitignored): `POST_HANDLES`, `STORY_HANDLES`, `DM_HANDLES` (comma lists). Messages count from two people as of 2026-09-27. Rayan earlier said stories should be only her plus one other person, but his `.env` lists every post account for stories too; he is deciding which he wants.
 - Stories: detect that a new story exists without opening it, so Rayan never shows up as a viewer from the checker.
 - DMs: read the inbox list preview only. Opening a thread on web marks it Seen, so the checker must never open threads.
 - Wording: messages say "her" today (`describe()` and `ask()` in `logic.js`); switch to naming the person once there are several.

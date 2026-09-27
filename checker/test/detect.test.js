@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { emptyState, diff, unlockBodies, parseEnv, handles } from "../src/detect.js";
+import { messagesFrom } from "../src/instagram.js";
 
 const T0 = Date.UTC(2026, 8, 27, 20, 0, 0);
 const MIN = 60 * 1000;
@@ -59,4 +60,28 @@ test("env file and handle parsing", () => {
   assert.deepEqual(handles(env.POST_HANDLES), ["maya", "sam"]);
   assert.equal(env.DM_HANDLE, "maya");
   assert.deepEqual(handles(undefined), []);
+});
+
+test("messages come only from that person's one to one thread, never from me", () => {
+  const box = {
+    viewer: { pk: "1" },
+    inbox: {
+      threads: [
+        { thread_id: "g", is_group: true, users: [{ username: "maya" }], items: [{ item_id: "x", user_id: "2", timestamp: "1" }] },
+        {
+          thread_id: "t1",
+          is_group: false,
+          users: [{ username: "Maya" }],
+          items: [
+            { item_id: "m2", user_id: "2", timestamp: String(T0 * 1000) },
+            { item_id: "m1", user_id: "1", timestamp: String((T0 - MIN) * 1000) },
+          ],
+        },
+      ],
+    },
+  };
+  assert.deepEqual(messagesFrom(box, "maya"), [
+    { id: "dm:m2", ts: T0, url: "https://www.instagram.com/direct/t/t1/" },
+  ]);
+  assert.deepEqual(messagesFrom(box, "sam"), []);
 });

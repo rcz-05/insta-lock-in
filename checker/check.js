@@ -5,7 +5,7 @@
 import { readFileSync, writeFileSync, existsSync, chmodSync } from "node:fs";
 import { loadConfig, openBrowser, alert, log, pause, SESSION, STATE } from "./src/setup.js";
 import { emptyState, diff, unlockBodies } from "./src/detect.js";
-import { profile, stories, messagesFrom, LoggedOut } from "./src/instagram.js";
+import { profile, stories, inbox, messagesFrom, LoggedOut } from "./src/instagram.js";
 
 const dryRun = process.argv.includes("--dry-run");
 const cfg = loadConfig();
@@ -51,9 +51,10 @@ try {
     }
   }
 
-  if (cfg.dmHandle) {
+  if (cfg.dmHandles.length) {
     await pause(3000, 8000);
-    track("dm", cfg.dmHandle, await messagesFrom(page, cfg.dmHandle));
+    const box = await inbox(page);
+    for (const handle of cfg.dmHandles) track("dm", handle, messagesFrom(box, handle));
   }
 
   // Keep the session fresh for next time.

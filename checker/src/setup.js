@@ -24,7 +24,8 @@ export function loadConfig() {
     barkKey: existsSync(join(SECRETS, "bark_key")) ? secret("bark_key") : null,
     postHandles: handles(env.POST_HANDLES),
     storyHandles: handles(env.STORY_HANDLES),
-    dmHandle: handles(env.DM_HANDLE)[0] ?? null,
+    // DM_HANDLES, or DM_HANDLE from older files; either takes a comma list.
+    dmHandles: handles(env.DM_HANDLES ?? env.DM_HANDLE),
   };
 }
 

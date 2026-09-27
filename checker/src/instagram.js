@@ -58,14 +58,18 @@ export async function stories(page, userId, handle) {
   }));
 }
 
+/** The inbox list, fetched once per run. Never opens a thread. */
+export async function inbox(page) {
+  return get(page, "/api/v1/direct_v2/inbox/?persistentBadging=true&limit=20&thread_message_limit=10");
+}
+
 /**
- * Messages from one person, read from the inbox list only (never opens the
- * thread, which would mark it Seen). Returns [{ id, ts, url }], newest first.
+ * Messages from one person, read from the inbox list only (opening the thread
+ * would mark it Seen). Returns [{ id, ts, url }], newest first.
  */
-export async function messagesFrom(page, handle) {
-  const body = await get(page, "/api/v1/direct_v2/inbox/?persistentBadging=true&limit=20&thread_message_limit=10");
-  const viewer = String(body?.viewer?.pk ?? body?.viewer?.id ?? "");
-  const threads = body?.inbox?.threads ?? [];
+export function messagesFrom(box, handle) {
+  const viewer = String(box?.viewer?.pk ?? box?.viewer?.id ?? "");
+  const threads = box?.inbox?.threads ?? [];
   const thread = threads.find(
     (t) => !t.is_group && (t.users ?? []).some((u) => u.username?.toLowerCase() === handle),
   );
