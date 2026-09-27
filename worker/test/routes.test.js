@@ -51,11 +51,11 @@ test("full cycle over HTTP", async () => {
   assert.equal(r.open, false);
 
   r = await (await handle(req("POST", "/unlock", { reason: "post", items: [{ id: "C1" }] }), env, T0)).json();
-  assert.deepEqual(r, { added: 1, state: "unlocked", cap_minutes: 15 });
+  assert.deepEqual(r, { added: 1, state: "unlocked", cap_minutes: 30 });
 
   r = await (await handle(req("GET", "/status"), env, T0 + MINUTE)).json();
   assert.equal(r.open, true);
-  assert.equal(r.minutes_left, 15);
+  assert.equal(r.minutes_left, 30);
   assert.match(r.message, /her new post/);
 
   r = await (await handle(req("POST", "/done", { checked: ["view", "like", "comment"] }), env, T0 + 5 * MINUTE)).json();
@@ -78,13 +78,13 @@ test("bad bodies return 400, unknown routes 404", async () => {
     body: "not json",
   });
   assert.equal((await handle(bad, env, T0)).status, 400);
-  assert.equal((await handle(req("POST", "/unlock", { reason: "story", items: [{ id: "x" }] }), env, T0)).status, 400);
+  assert.equal((await handle(req("POST", "/unlock", { reason: "reels", items: [{ id: "x" }] }), env, T0)).status, 400);
   assert.equal((await handle(req("GET", "/nope"), env, T0)).status, 404);
 });
 
 test("manual lock works", async () => {
   const env = fakeEnv();
-  await handle(req("POST", "/unlock", { reason: "reels", items: [{ id: "R1" }] }), env, T0);
+  await handle(req("POST", "/unlock", { reason: "dm", items: [{ id: "M1" }] }), env, T0);
   const r = await (await handle(req("POST", "/lock"), env, T0)).json();
   assert.equal(r.state, "locked");
 });
@@ -108,8 +108,8 @@ test("cron nags on schedule with a checklist action", async () => {
   const f = fakeFetch();
   await handle(req("POST", "/unlock", { reason: "post", items: [{ id: "C1" }] }), env, T0, f);
   await handle(req("GET", "/status"), env, T0, f);
-  assert.deepEqual(await tick(env, T0 + 4 * MINUTE, f), []);
-  const sent = await tick(env, T0 + 5 * MINUTE, f);
+  assert.deepEqual(await tick(env, T0 + 9 * MINUTE, f), []);
+  const sent = await tick(env, T0 + 10 * MINUTE, f);
   assert.equal(sent.length, 1);
   assert.equal(f.calls.length, 2); // unlock push, then the nag
   const call = f.calls[1];
@@ -121,17 +121,17 @@ test("cron nags on schedule with a checklist action", async () => {
   assert.equal(push.level, "timeSensitive");
   assert.equal(push.group, "insta-lock-in");
   assert.equal(push.url, "https://lock.example/checklist?t=secret-123");
-  assert.match(push.body, /10 min left/);
+  assert.match(push.body, /20 min left/);
   // Same minute again does not repeat the nag.
-  assert.deepEqual(await tick(env, T0 + 5 * MINUTE + 30000, f), []);
+  assert.deepEqual(await tick(env, T0 + 10 * MINUTE + 30000, f), []);
 });
 
 test("cron relocks at the cap and sends the final push", async () => {
   const env = pushEnv();
   const f = fakeFetch();
-  await handle(req("POST", "/unlock", { reason: "reels", items: [{ id: "R1" }] }), env, T0, f);
+  await handle(req("POST", "/unlock", { reason: "story", items: [{ id: "S1" }] }), env, T0, f);
   await handle(req("GET", "/status"), env, T0, f);
-  const sent = await tick(env, T0 + 11 * MINUTE, f);
+  const sent = await tick(env, T0 + 10 * MINUTE, f);
   assert.equal(sent.length, 1);
   const last = JSON.parse(f.calls.at(-1).body);
   assert.equal(last.body, "Time is up. Instagram is locked again.");
@@ -180,5 +180,5 @@ test("unlocking sends a push, a repeat unlock does not", async () => {
   assert.equal(f.calls.length, 1);
   const push = JSON.parse(f.calls[0].body);
   assert.equal(push.title, "Instagram unlocked");
-  assert.equal(push.body, "New post from Maya. Your 15 minutes start when you open Instagram.");
+  assert.equal(push.body, "New post from Maya. Your 30 minutes start when you open Instagram.");
 });

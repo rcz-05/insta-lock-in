@@ -5,6 +5,10 @@
 export const MINUTE = 60 * 1000;
 const SEEN_LIMIT = 200;
 
+// What can unlock Instagram: a post (or Reel) on her profile, a new story,
+// or a message she sends. Each kind has its own cap, nag interval and checklist.
+export const KINDS = ["post", "story", "dm"];
+
 /** Config read from Worker env vars, with defaults. */
 export function readConfig(env = {}) {
   const list = (v, d) =>
@@ -16,22 +20,24 @@ export function readConfig(env = {}) {
     const n = Number(v);
     return Number.isFinite(n) && n > 0 ? n : d;
   };
+  const kind = (prefix, cap, nag, required) => ({
+    cap: num(env[`${prefix}_CAP_MIN`], cap),
+    // Nag intervals in minutes; several values alternate by nag_count.
+    nag: list(env[`${prefix}_NAG_MIN`], nag).map(Number),
+    required: list(env[`${prefix}_REQUIRED`], required),
+  });
   return {
-    postCapMin: num(env.POST_CAP_MIN, 15),
-    reelBaseMin: num(env.REEL_BASE_MIN, 10),
-    reelPerItemMin: num(env.REEL_PER_ITEM_MIN, 1),
-    postRequired: list(env.POST_REQUIRED, "view,like,comment"),
-    reelRequired: list(env.REEL_REQUIRED, "watched,replied"),
-    // Nag intervals in minutes. Reels alternate between the listed values.
-    postNagMin: list(env.POST_NAG_MIN, "5").map(Number),
-    reelNagMin: list(env.REEL_NAG_MIN, "2,3").map(Number),
+    post: kind("POST", 30, "10", "view,like,comment"),
+    story: kind("STORY", 10, "5", "watched"),
+    dm: kind("DM", 10, "5", "watched,replied"),
   };
 }
 
 export function initialState() {
   return {
     state: "locked", // locked | unlocked | session
-    reason: null, // post | reels
+    reason: null, // post | story | dm | mixed
+    kinds: [], // every kind in the current window
     items: [], // [{ id, url }]
     required: [],
     checked: [],
@@ -79,10 +85,10 @@ export function enforceCap(s, now) {
   return s;
 }
 
-function capFor(reason, itemCount, cfg) {
-  return reason === "post"
-    ? cfg.postCapMin
-    : cfg.reelBaseMin + cfg.reelPerItemMin * itemCount;
+// Kinds in the current window. Older records only have `reason`.
+function kindsOf(s) {
+  if (s.kinds?.length) return s.kinds;
+  return KINDS.includes(s.reason) ? [s.reason] : ["post"];
 }
 
 /**
@@ -90,8 +96,8 @@ function capFor(reason, itemCount, cfg) {
  * new items. Items already seen are ignored so repeated checker runs are safe.
  */
 export function unlock(s, { reason, items }, cfg, now) {
-  if (reason !== "post" && reason !== "reels") {
-    throw new Error('reason must be "post" or "reels"');
+  if (!KINDS.includes(reason)) {
+    throw new Error('reason must be "post", "story" or "dm"');
   }
   if (!Array.isArray(items) || items.length === 0) {
     throw new Error("items must be a non empty array");
@@ -120,12 +126,13 @@ export function unlock(s, { reason, items }, cfg, now) {
         ...s,
         state: "unlocked",
         reason,
+        kinds: [reason],
         items: unique,
-        required: reason === "post" ? cfg.postRequired : cfg.reelRequired,
+        required: cfg[reason].required,
         checked: [],
         unlocked_at: now,
         session_started: null,
-        cap_minutes: capFor(reason, unique.length, cfg),
+        cap_minutes: cfg[reason].cap,
         last_nag: null,
         nag_count: 0,
         seen: newSeen,
@@ -133,22 +140,19 @@ export function unlock(s, { reason, items }, cfg, now) {
     };
   }
 
-  // Already open: add the items to the current window. A post plus Reels
-  // becomes a combined window; required actions are the union.
-  const allItems = [...s.items, ...unique];
-  const mixed = s.reason !== reason;
-  const required = mixed
-    ? [...new Set([...cfg.postRequired, ...cfg.reelRequired])]
-    : s.required;
-  const extra = reason === "post" ? cfg.postCapMin : cfg.reelPerItemMin * unique.length;
+  // Already open: add the items to the current window. Required actions are
+  // the union, and the new thing gets at least its full time from now.
+  const kinds = [...new Set([...kindsOf(s), reason])];
+  const used = s.session_started != null ? Math.ceil((now - s.session_started) / MINUTE) : 0;
   return {
     added: unique.length,
     state: {
       ...s,
-      reason: mixed ? "mixed" : s.reason,
-      items: allItems,
-      required,
-      cap_minutes: s.cap_minutes + extra,
+      reason: kinds.length === 1 ? reason : "mixed",
+      kinds,
+      items: [...s.items, ...unique],
+      required: [...new Set([...s.required, ...cfg[reason].required])],
+      cap_minutes: Math.max(s.cap_minutes, used + cfg[reason].cap),
       seen: newSeen,
     },
   };
@@ -157,7 +161,8 @@ export function unlock(s, { reason, items }, cfg, now) {
 function describe(s) {
   const n = s.items.length;
   if (s.reason === "post") return n === 1 ? "her new post" : `her ${n} new posts`;
-  if (s.reason === "reels") return n === 1 ? "1 Reel from her" : `${n} Reels from her`;
+  if (s.reason === "story") return n === 1 ? "her new story" : `${n} new stories from her`;
+  if (s.reason === "dm") return n === 1 ? "her message" : `${n} messages from her`;
   return `${n} new things from her`;
 }
 
@@ -223,7 +228,6 @@ export function forceLock(s, now) {
 
 // Question asked in a nag for each unticked checklist action.
 function ask(action, s) {
-  const reels = s.items.length;
   switch (action) {
     case "view":
       return "Seen her post?";
@@ -232,7 +236,9 @@ function ask(action, s) {
     case "comment":
       return "Commented?";
     case "watched":
-      return reels === 1 ? "Watched the Reel?" : `Watched all ${reels} Reels?`;
+      if (s.reason === "story") return "Watched her story?";
+      if (s.reason === "dm") return "Seen what she sent?";
+      return "Watched everything?";
     case "replied":
       return "Replied?";
     default:
@@ -242,13 +248,13 @@ function ask(action, s) {
 
 /**
  * Reminder push during a session. Returns { state, message } where message is
- * null when no nag is due. Posts nag every POST_NAG_MIN; Reels and mixed
- * windows cycle through REEL_NAG_MIN by nag_count.
+ * null when no nag is due. Each kind nags on its own interval; a mixed
+ * window uses the shortest one.
  */
 export function nag(s, cfg, now) {
   if (s.state !== "session") return { state: s, message: null };
-  const steps = s.reason === "post" ? cfg.postNagMin : cfg.reelNagMin;
-  const interval = steps[s.nag_count % steps.length] * MINUTE;
+  const interval =
+    Math.min(...kindsOf(s).map((k) => cfg[k].nag[s.nag_count % cfg[k].nag.length])) * MINUTE;
   const since = s.last_nag ?? s.session_started;
   if (now - since < interval) return { state: s, message: null };
   const todo = s.required.filter((a) => !s.checked.includes(a));
@@ -290,12 +296,10 @@ export function unlockPush(prev, next, added, now) {
   const who = fresh.find((it) => it.from)?.from ?? "her";
   let what;
   if (prev.state === "locked") {
-    what =
-      next.reason === "post"
-        ? `New post from ${who}.`
-        : added === 1
-          ? `New Reel from ${who}.`
-          : `${added} new Reels from ${who}.`;
+    const noun = { post: ["post", "posts"], story: ["story", "stories"], dm: ["message", "messages"] }[
+      next.reason
+    ];
+    what = added === 1 ? `New ${noun[0]} from ${who}.` : `${added} new ${noun[1]} from ${who}.`;
   } else {
     what = `More from ${who}.`;
   }

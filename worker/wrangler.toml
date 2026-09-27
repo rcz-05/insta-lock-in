@@ -16,12 +16,14 @@ id = "81eb575709fc4ea9b56b9aa702efd710"
 crons = ["* * * * *"]
 
 [vars]
-POST_CAP_MIN = "15"
-REEL_BASE_MIN = "10"
-REEL_PER_ITEM_MIN = "1"
+POST_CAP_MIN = "30"
+POST_NAG_MIN = "10"
 POST_REQUIRED = "view,like,comment"
-REEL_REQUIRED = "watched,replied"
-POST_NAG_MIN = "5"
-REEL_NAG_MIN = "2,3"
+STORY_CAP_MIN = "10"
+STORY_NAG_MIN = "5"
+STORY_REQUIRED = "watched"
+DM_CAP_MIN = "10"
+DM_NAG_MIN = "5"
+DM_REQUIRED = "watched,replied"
 # Public base URL, used for the checklist link inside pushes.
 WORKER_URL = "https://insta-lock-in.rayancaszou.workers.dev"
