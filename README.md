@@ -24,7 +24,7 @@ Instagram ──reads──> Mac checker ──POST /unlock──> Cloudflare Wo
 
 ## Progress
 
-- [x] Step 1: Worker and state (`/status`, `/unlock`, `/done`, `/state`)
+- [x] Step 1: Worker and state (`/status`, `/unlock`, `/done`, `/state`), deployed to Cloudflare
 - [ ] Step 2: ntfy pushes and the cron nag loop
 - [ ] Step 3: Shortcuts gate on the iPhone
 - [ ] Step 4: Checklist page

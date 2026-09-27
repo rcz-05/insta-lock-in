@@ -22,7 +22,7 @@ Planning happened in a Claude (Cowork) session on 2026-09-27. Decisions below ar
 
 | Step | State |
 | --- | --- |
-| 1. Worker and state (`/status`, `/unlock`, `/done`, `/lock`, `/state`) | Done, 24 tests passing, not deployed yet |
+| 1. Worker and state (`/status`, `/unlock`, `/done`, `/lock`, `/state`) | Done, deployed 2026-09-27, live cycle verified with curl |
 | 2. ntfy pushes and cron nag loop | Next |
 | 3. Shortcuts gate on iPhone | Todo (Rayan does it on the phone; give exact steps) |
 | 4. Checklist page (`GET /checklist`) | Todo |
@@ -35,7 +35,7 @@ Planning happened in a Claude (Cowork) session on 2026-09-27. Decisions below ar
 
 - Cloudflare account id: `f5c3178b0fbde14313e6eefc984feaaf`.
 - KV namespace `insta-lock-in-LOCK_KV` already exists, id `81eb575709fc4ea9b56b9aa702efd710`, already set in `worker/wrangler.toml`.
-- Worker not deployed yet. To deploy from `worker/`: `npm install`, `npx wrangler login`, `npx wrangler deploy`, then set the secret with `mkdir -p ../.secrets && openssl rand -hex 24 > ../.secrets/token && npx wrangler secret put TOKEN < ../.secrets/token`.
+- Worker is live at `https://insta-lock-in.rayancaszou.workers.dev`. Redeploy from `worker/` with `npx wrangler deploy`. The `TOKEN` secret is set; its value is in `.secrets/token` (read it inside commands, never print it).
 - Without the `TOKEN` secret the Worker refuses every request except `GET /` (safe by default).
 - `.secrets/` and `checker/session.json` are gitignored. Never commit tokens, the Instagram session, or her handle.
 - GitHub remote: https://github.com/rcz-05/insta-lock-in (private). It may still be empty; if so, push `main` to it.
