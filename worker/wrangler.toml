@@ -2,11 +2,10 @@ name = "insta-lock-in"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
 
-# Create with: npx wrangler kv namespace create LOCK_KV
-# then paste the id it prints below.
+# Namespace "insta-lock-in-LOCK_KV", created 2026-09-27.
 [[kv_namespaces]]
 binding = "LOCK_KV"
-id = "REPLACE_WITH_KV_ID"
+id = "81eb575709fc4ea9b56b9aa702efd710"
 
 # The shared secret is NOT stored here. Set it with:
 #   npx wrangler secret put TOKEN

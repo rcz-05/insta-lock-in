@@ -6,3 +6,4 @@ node_modules/
 # Instagram session for the Mac checker. Never commit this.
 checker/session.json
 checker/.env
+.secrets/
