@@ -1,0 +1,8 @@
+node_modules/
+.wrangler/
+.dev.vars
+*.log
+.DS_Store
+# Instagram session for the Mac checker. Never commit this.
+checker/session.json
+checker/.env
