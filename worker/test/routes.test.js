@@ -111,8 +111,8 @@ test("cron nags on schedule with a checklist action", async () => {
   assert.deepEqual(await tick(env, T0 + 4 * MINUTE, f), []);
   const sent = await tick(env, T0 + 5 * MINUTE, f);
   assert.equal(sent.length, 1);
-  assert.equal(f.calls.length, 1);
-  const call = f.calls[0];
+  assert.equal(f.calls.length, 2); // unlock push, then the nag
+  const call = f.calls[1];
   assert.equal(call.url, "https://api.day.app/push");
   assert.equal(call.method, "POST");
   const push = JSON.parse(call.body);
@@ -148,8 +148,8 @@ test("finishing the checklist sends the final push", async () => {
   await handle(req("POST", "/unlock", { reason: "post", items: [{ id: "C1" }] }), env, T0, f);
   await handle(req("GET", "/status"), env, T0, f);
   await handle(req("POST", "/done", { checked: ["view", "like", "comment"] }), env, T0 + MINUTE, f);
-  assert.equal(f.calls.length, 1);
-  assert.equal(JSON.parse(f.calls[0].body).body, "Done. Instagram is locked again.");
+  assert.equal(f.calls.length, 2); // unlock push, then the final push
+  assert.equal(JSON.parse(f.calls[1].body).body, "Done. Instagram is locked again.");
 });
 
 test("no key means no pushes, and a failing push does not break routes", async () => {
@@ -169,4 +169,16 @@ test("no key means no pushes, and a failing push does not break routes", async (
   const r = await handle(req("POST", "/done", { checked: ["view", "like", "comment"] }), env2, T0, broken);
   assert.equal(r.status, 200);
   assert.equal((await tick(env2, T0 + MINUTE, broken)).length, 0);
+});
+
+test("unlocking sends a push, a repeat unlock does not", async () => {
+  const env = pushEnv();
+  const f = fakeFetch();
+  const body = { reason: "post", items: [{ id: "C1", from: "Maya" }] };
+  await handle(req("POST", "/unlock", body), env, T0, f);
+  await handle(req("POST", "/unlock", body), env, T0 + MINUTE, f);
+  assert.equal(f.calls.length, 1);
+  const push = JSON.parse(f.calls[0].body);
+  assert.equal(push.title, "Instagram unlocked");
+  assert.equal(push.body, "New post from Maya. Your 15 minutes start when you open Instagram.");
 });

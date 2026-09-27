@@ -12,6 +12,7 @@ import {
   minutesLeft,
   nag,
   finalPush,
+  unlockPush,
 } from "../src/logic.js";
 
 const cfg = readConfig({});
@@ -199,4 +200,16 @@ test("final push after checklist or cap, silent on manual lock", () => {
   assert.equal(finalPush(s, forceLock(s, T0)), null);
   assert.equal(finalPush(initialState(), initialState()), null);
   assert.equal(finalPush(s, s), null);
+});
+
+test("unlock push says what arrived and when the clock starts", () => {
+  const s0 = initialState();
+  const a = unlock(s0, { reason: "post", items: [{ id: "C1", from: "Maya" }] }, cfg, T0);
+  assert.equal(unlockPush(s0, a.state, a.added, T0).body, "New post from Maya. Your 15 minutes start when you open Instagram.");
+  const b = unlock(s0, reels, cfg, T0);
+  assert.equal(unlockPush(s0, b.state, b.added, T0).body, "3 new Reels from her. Your 13 minutes start when you open Instagram.");
+  const opened = status(b.state, T0).state;
+  const c = unlock(opened, { reason: "reels", items: [{ id: "R7" }] }, cfg, T0 + 3 * MINUTE);
+  assert.equal(unlockPush(opened, c.state, c.added, T0 + 3 * MINUTE).body, "More from her. 11 min left.");
+  assert.equal(unlockPush(s0, s0, 0, T0), null);
 });

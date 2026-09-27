@@ -101,7 +101,12 @@ export function unlock(s, { reason, items }, cfg, now) {
   const fresh = items
     .filter((it) => it && typeof it.id === "string" && it.id.length > 0)
     .filter((it) => !seen.has(it.id))
-    .map((it) => ({ id: it.id, url: typeof it.url === "string" ? it.url : null }));
+    .map((it) => ({
+      id: it.id,
+      url: typeof it.url === "string" ? it.url : null,
+      // Optional display name of who posted or sent it, for push text.
+      ...(typeof it.from === "string" && it.from ? { from: it.from } : {}),
+    }));
   // Dedupe within the same request too.
   const unique = [...new Map(fresh.map((it) => [it.id, it])).values()];
   if (unique.length === 0) return { state: s, added: 0 };
@@ -271,6 +276,37 @@ export function finalPush(prev, next) {
     title: how === "cap" ? "Time is up" : "Checklist done",
     level: "timeSensitive",
     body: how === "cap" ? "Time is up. Instagram is locked again." : "Done. Instagram is locked again.",
+    checklist: false,
+  };
+}
+
+/**
+ * Push sent when /unlock adds something, so Rayan knows Instagram is open.
+ * Pass the state before and after the unlock plus the added count.
+ */
+export function unlockPush(prev, next, added, now) {
+  if (added <= 0 || next.state === "locked") return null;
+  const fresh = next.items.slice(-added);
+  const who = fresh.find((it) => it.from)?.from ?? "her";
+  let what;
+  if (prev.state === "locked") {
+    what =
+      next.reason === "post"
+        ? `New post from ${who}.`
+        : added === 1
+          ? `New Reel from ${who}.`
+          : `${added} new Reels from ${who}.`;
+  } else {
+    what = `More from ${who}.`;
+  }
+  const when =
+    next.state === "unlocked"
+      ? `Your ${next.cap_minutes} minutes start when you open Instagram.`
+      : `${minutesLeft(next, now)} min left.`;
+  return {
+    title: "Instagram unlocked",
+    level: "timeSensitive",
+    body: `${what} ${when}`,
     checklist: false,
   };
 }

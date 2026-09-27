@@ -57,7 +57,7 @@ All requests need the shared secret, either as header `X-Token: <token>` or quer
 | Method | Path | Called by | Does |
 | --- | --- | --- | --- |
 | GET | `/status` | Shortcuts gate | Returns `{ open, state, message, minutes_left }`. First call after an unlock starts the session clock. |
-| POST | `/unlock` | Mac checker | Body `{ reason: "post" or "reels", items: [{ id, url? }] }`. Ignores ids it has seen before. |
+| POST | `/unlock` | Mac checker | Body `{ reason: "post" or "reels", items: [{ id, url?, from? }] }`. Ignores ids it has seen before. Sends an "Instagram unlocked" push. |
 | POST | `/done` | Checklist page | Body `{ checked: ["view", "like"] }`. Relocks once every required action is ticked. |
 | GET | `/state` | You, for debugging | Full state record. |
 | POST | `/lock` | You, for emergencies | Forces the state back to locked. |

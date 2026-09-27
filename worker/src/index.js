@@ -10,6 +10,7 @@ import {
   enforceCap,
   nag,
   finalPush,
+  unlockPush,
 } from "./logic.js";
 
 const KEY = "state";
@@ -127,7 +128,10 @@ export async function handle(request, env, now = Date.now(), fetchFn = fetch) {
       case "POST /unlock": {
         const body = await readJson(request);
         const r = unlock(s, body, cfg, now);
-        if (r.added > 0) await commit(env, prev, r.state, fetchFn);
+        if (r.added > 0) {
+          await commit(env, prev, r.state, fetchFn);
+          await notify(env, unlockPush(prev, r.state, r.added, now), fetchFn);
+        }
         return json({ added: r.added, state: r.state.state, cap_minutes: r.state.cap_minutes });
       }
       case "POST /done": {

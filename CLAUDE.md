@@ -24,11 +24,12 @@ Planning happened in a Claude (Cowork) session on 2026-09-27. Decisions below ar
 Plan these into step 5 (Mac checker) and the Worker before building it. Details still to confirm with Rayan.
 
 - A list of people instead of one person. Rayan picks the handles; they live in `checker/.env` (gitignored), never in git or chat logs if avoidable.
-- Triggers per person: new posts, new Reels on their profile, new Stories, and Reels or messages they send him in DMs.
+- Two lists. People list: new posts, new Reels on their profile, new Stories. Friends list (separate): Reels or messages they send him in DMs.
+- Friends DM unlocks: nag every 2 minutes, flat 20 minute cap for the session. Needs a new unlock reason (for example `dm`) with its own cap and nag interval in `wrangler.toml`.
 - Stories: detect that a new story exists without opening it, so Rayan never shows up as a viewer from the checker.
 - DMs: read the inbox list preview only. Opening a thread on web marks it Seen, so the checker must never open threads.
 - Wording: messages say "her" today (`describe()` and `ask()` in `logic.js`); switch to naming the person once there are several.
-- Open question: a push the moment something unlocks ("New post from X. Your 15 minutes start when you open Instagram."). Today nothing tells Rayan an unlock happened.
+- Unlock push is built: `unlockPush()` in `logic.js`, sent from `/unlock`. Items may carry an optional `from` display name the checker should fill in.
 
 ## Status
 
