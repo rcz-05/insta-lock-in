@@ -62,4 +62,4 @@ All requests need the shared secret, either as header `X-Token: <token>` or quer
 | GET | `/state` | You, for debugging | Full state record. |
 | POST | `/lock` | You, for emergencies | Forces the state back to locked. |
 
-The plan doc lives in the Claude project "Insta_lock_in".
+The full plan is in `docs/PLAN.md`. Context for Claude Code sessions is in `CLAUDE.md`.
