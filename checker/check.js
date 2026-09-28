@@ -2,10 +2,11 @@
 // time, and ask the Worker to unlock. `--dry-run` prints what it would unlock
 // and saves nothing. `--dm-only` skips profiles and only reads the inbox list.
 //
-// launchd starts this every hour. A scheduled run does real work only when
-// the last completed run was about 12 hours ago, so Instagram sees at most
-// two checks a day, but a check missed while the Mac was off, asleep or
-// offline happens within an hour of it being back. `--now` skips the wait.
+// launchd starts this every 15 minutes, and on wake for times missed while
+// asleep. A scheduled run does real work only when the last completed run
+// was about 12 hours ago, so Instagram sees at most two checks a day, but a
+// check missed while the Mac was off, asleep or offline happens as soon as
+// it is back. `--now` skips the wait.
 
 import { readFileSync, writeFileSync, existsSync, chmodSync, renameSync } from "node:fs";
 import { loadConfig, openBrowser, alert, log, pause, SESSION, STATE } from "./src/setup.js";
