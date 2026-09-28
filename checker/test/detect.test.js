@@ -85,3 +85,27 @@ test("messages come only from that person's one to one thread, never from me", (
   ]);
   assert.deepEqual(messagesFrom(box, "sam"), []);
 });
+
+test("messages already replied to do not count", () => {
+  const box = {
+    viewer: { pk: "1" },
+    inbox: {
+      threads: [
+        {
+          thread_id: "t1",
+          is_group: false,
+          users: [{ username: "maya" }],
+          items: [
+            { item_id: "m4", user_id: "2", timestamp: String((T0 + 3 * MIN) * 1000) },
+            { item_id: "m3", user_id: "1", timestamp: String((T0 + 2 * MIN) * 1000) },
+            { item_id: "m2", user_id: "2", timestamp: String((T0 + MIN) * 1000) },
+          ],
+        },
+      ],
+    },
+  };
+  // m2 was answered by m3; only m4 is still waiting on a reply.
+  assert.deepEqual(messagesFrom(box, "maya").map((m) => m.id), ["dm:m4"]);
+  box.inbox.threads[0].items.unshift({ item_id: "m5", user_id: "1", timestamp: String((T0 + 4 * MIN) * 1000) });
+  assert.deepEqual(messagesFrom(box, "maya"), []);
+});

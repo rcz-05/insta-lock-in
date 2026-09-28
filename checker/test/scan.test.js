@@ -42,3 +42,11 @@ test("reads old style shortcode data and no story means none", () => {
 test("nothing recognisable gives empty results", () => {
   assert.deepEqual(readProfile([{ foo: 1 }, null, "x"], "maya"), { id: null, posts: [], stories: [] });
 });
+
+test("posts Rayan already liked are skipped", () => {
+  const p = readProfile(
+    [{ edges: [{ node: { code: "L1", taken_at: 1789000000, has_liked: true } }, { node: { code: "N1", taken_at: 1789000001, has_liked: false } }] }],
+    "maya",
+  );
+  assert.deepEqual(p.posts.map((x) => x.id), ["N1"]);
+});

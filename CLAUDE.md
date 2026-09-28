@@ -27,6 +27,7 @@ Plan these into step 5 (Mac checker) and the Worker before building it. Details 
 - Accounts live in `checker/.env` (gitignored): `POST_HANDLES`, `STORY_HANDLES`, `DM_HANDLES` (comma lists). Messages count from two people as of 2026-09-27. Rayan earlier said stories should be only her plus one other person, but his `.env` lists every post account for stories too; he is deciding which he wants.
 - Stories: detect that a new story exists without opening it, so Rayan never shows up as a viewer from the checker.
 - DMs: read the inbox list preview only. Opening a thread on web marks it Seen, so the checker must never open threads.
+- Only unhandled things count (from Rayan, 2026-09-28): messages sent before his latest reply in the thread are skipped, and posts he already liked (`has_liked`) are skipped. Stories he already watched are not detected yet; check whether the profile data carries a seen marker.
 - Wording: messages say "her" today (`describe()` and `ask()` in `logic.js`); switch to naming the person once there are several.
 - Unlock push is built: `unlockPush()` in `logic.js`, sent from `/unlock`. Items may carry an optional `from` display name the checker should fill in.
 

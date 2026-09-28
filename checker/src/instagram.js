@@ -88,8 +88,10 @@ export async function inbox(page) {
 }
 
 /**
- * Messages from one person, read from the inbox list only (opening the thread
- * would mark it Seen). Returns [{ id, ts, url }], newest first.
+ * Messages from one person that Rayan has not replied to yet, read from the
+ * inbox list only (opening the thread would mark it Seen). Anything sent
+ * before his latest message in the thread counts as answered.
+ * Returns [{ id, ts, url }], newest first.
  */
 export function messagesFrom(box, handle) {
   const viewer = String(box?.viewer?.pk ?? box?.viewer?.id ?? "");
@@ -98,12 +100,15 @@ export function messagesFrom(box, handle) {
     (t) => !t.is_group && (t.users ?? []).some((u) => u.username?.toLowerCase() === handle),
   );
   if (!thread) return [];
-  return (thread.items ?? [])
-    .filter((it) => String(it.user_id) !== viewer)
+  // Instagram gives message times in microseconds.
+  const ms = (it) => Math.floor(Number(it.timestamp) / 1000);
+  const items = thread.items ?? [];
+  const lastReply = Math.max(0, ...items.filter((it) => String(it.user_id) === viewer).map(ms));
+  return items
+    .filter((it) => String(it.user_id) !== viewer && ms(it) > lastReply)
     .map((it) => ({
       id: `dm:${it.item_id}`,
-      // Instagram gives message times in microseconds.
-      ts: Math.floor(Number(it.timestamp) / 1000),
+      ts: ms(it),
       url: `https://www.instagram.com/direct/t/${thread.thread_id}/`,
     }));
 }

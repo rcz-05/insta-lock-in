@@ -14,7 +14,8 @@ export function readProfile(bodies, handle) {
     const code = typeof v.code === "string" ? v.code : typeof v.shortcode === "string" ? v.shortcode : null;
     const taken = Number(v.taken_at ?? v.taken_at_timestamp);
     const owner = (v.user ?? v.owner)?.username?.toLowerCase();
-    if (code && taken > 0 && (!owner || owner === want)) {
+    // has_liked: Rayan already liked it, so it is not new to him.
+    if (code && taken > 0 && (!owner || owner === want) && v.has_liked !== true) {
       const reel = v.product_type === "clips";
       posts.set(code, { id: code, ts: taken * 1000, url: `https://www.instagram.com/${reel ? "reel" : "p"}/${code}/` });
     }
