@@ -77,6 +77,7 @@ export async function alert(cfg, title, body) {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ device_key: cfg.barkKey, title, body, group: "insta-lock-in", level: "timeSensitive" }),
+      signal: AbortSignal.timeout(15000),
     });
   } catch {
     // The log still has it.

@@ -14,6 +14,7 @@ async function get(page, path) {
     async ({ path, appId }) => {
       const res = await fetch(path, {
         credentials: "include",
+        signal: AbortSignal.timeout(30000),
         headers: { "x-ig-app-id": appId, "x-requested-with": "XMLHttpRequest" },
       });
       const text = await res.text();
@@ -21,7 +22,7 @@ async function get(page, path) {
     },
     { path, appId: APP_ID },
   );
-  if (r.status === 401 || r.status === 403 || r.url.includes("/accounts/login")) {
+  if (r.status === 401 || r.status === 403 || /\/accounts\/login|\/challenge/.test(r.url)) {
     throw new LoggedOut(`logged out (${r.status} on ${path})`);
   }
   let body;
@@ -62,7 +63,7 @@ export async function profile(page, handle) {
   try {
     const res = await page.goto(`https://www.instagram.com/${encodeURIComponent(handle)}/`, { waitUntil: "domcontentloaded" });
     if (res?.status() === 429) limited = true;
-    if (page.url().includes("/accounts/login")) throw new LoggedOut("redirected to login");
+    if (/\/accounts\/login|\/challenge/.test(page.url())) throw new LoggedOut("Instagram wants a login or a security check");
     await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
     // Data embedded in the page HTML itself.
     const embedded = await page.$$eval('script[type="application/json"]', (els) => els.map((e) => e.textContent));

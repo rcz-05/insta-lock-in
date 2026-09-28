@@ -30,7 +30,7 @@ Instagram ──reads──> Mac checker ──POST /unlock──> Cloudflare Wo
 - [x] Step 4: Checklist page
 - [x] Step 5: Mac checker (Playwright)
 - [x] Step 6: launchd schedule
-- [ ] Step 7: Hardening
+- [x] Step 7: Hardening
 - [ ] Step 8: Full cycle test
 
 ## Layout

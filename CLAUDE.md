@@ -30,6 +30,7 @@ Plan these into step 5 (Mac checker) and the Worker before building it. Details 
 - Only unhandled things count (from Rayan, 2026-09-28): messages sent before his latest reply in the thread are skipped, and posts he already liked (`has_liked`) are skipped.
 - Stories are off (2026-09-28): Rayan said they matter little; `STORY_HANDLES` is empty in `checker/.env`. The code still supports them.
 - After every run the checker POSTs `/ping`. The Worker records `last_check`, pushes "Still waiting" if something unlocked over an hour ago has not been opened, and the cron pushes "Checker stopped" once if no check in for 26 hours.
+- Checker failure handling (2026-09-28): a run over 15 minutes exits so launchd can retry; `state.json` and `session.json` are written through a temp file; a run that reaches Instagram but has problems (unreadable profile, rate limit, a profile with posts suddenly showing none, failure partway) still counts and sends one "Checker needs attention" push; a logout or `/challenge` sends "Checker logged out"; a run with no internet does not count and retries next hour.
 - No second chances (Rayan, 2026-09-28): an item whose session hit the cap is used up and never unlocks again. This is deliberate; do not add retries.
 - Remote running was considered and rejected (2026-09-28): a cloud server logs into Instagram from a data center address and risks checkpoints or a locked account. The Mac only needs to be asleep, not open; the hourly launchd job catches up within an hour of the Mac being back on.
 - Wording: messages say "her" today (`describe()` and `ask()` in `logic.js`); switch to naming the person once there are several.
@@ -45,7 +46,7 @@ Plan these into step 5 (Mac checker) and the Worker before building it. Details 
 | 4. Checklist page (`GET /checklist`) | Done, deployed; waiting on Rayan to try it from a reminder |
 | 5. Mac checker (Playwright) | Working live 2026-09-28: baselines saved, a DM from the friend unlocked end to end. 5 of 8 profiles read posts; 3 read none (likely private or empty, Rayan to confirm) |
 | 6. launchd schedule | Done 2026-09-28: `checker/install-schedule.sh` installs `com.insta-lock-in.checker` (hourly, with the 12 hour gate in `check.js`; logs to `checker/checker.log`) |
-| 7. Hardening | In progress 2026-09-28: heartbeat and still waiting reminders done; checker bypasses the Mac hosts block via DNS over HTTPS (`resolverRules` in `checker/src/setup.js`); Rayan to run `block-web.sh`, set the iPhone Screen Time web block, and optionally add an Airplane Mode automation |
+| 7. Hardening | Done 2026-09-28: heartbeat, still waiting reminders, checker watchdog (15 min), atomic saves, alerts on partial failures and security checks. Web blocks (`block-web.sh`, iPhone Screen Time, Airplane Mode automation) are available but Rayan chose not to use them |
 | 8. Full cycle test | Todo |
 
 ## Infra facts
