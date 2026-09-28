@@ -28,7 +28,7 @@ Instagram ──reads──> Mac checker ──POST /unlock──> Cloudflare Wo
 - [x] Step 2: Bark pushes and the cron nag loop
 - [x] Step 3: Shortcuts gate on the iPhone
 - [x] Step 4: Checklist page
-- [ ] Step 5: Mac checker (Playwright)
+- [x] Step 5: Mac checker (Playwright)
 - [ ] Step 6: launchd schedule
 - [ ] Step 7: Hardening
 - [ ] Step 8: Full cycle test

@@ -38,7 +38,7 @@ Plan these into step 5 (Mac checker) and the Worker before building it. Details 
 | 2. Bark pushes and cron nag loop | Done, deployed, Lock Screen delivery confirmed |
 | 3. Shortcuts gate on iPhone | Done 2026-09-27; locked bounces Home, unlocked stays open, both verified on Rayan's phone |
 | 4. Checklist page (`GET /checklist`) | Done, deployed; waiting on Rayan to try it from a reminder |
-| 5. Mac checker (Playwright) | Built, 10 tests, logged in. First dry run 2026-09-27: inbox worked, profile API got 429 so profiles now load as pages (untested live). Next: after a cooldown, one real run for baselines, friend sends a DM, then `npm run dm` should unlock |
+| 5. Mac checker (Playwright) | Working live 2026-09-28: baselines saved, a DM from the friend unlocked end to end. 5 of 8 profiles read posts; 3 read none (likely private or empty, Rayan to confirm) |
 | 6. launchd schedule | Todo |
 | 7. Hardening (heartbeat, Screen Time web block) | Todo |
 | 8. Full cycle test | Todo |
