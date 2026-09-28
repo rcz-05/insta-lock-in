@@ -29,9 +29,36 @@ export function loadConfig() {
   };
 }
 
+// Instagram is blocked for every browser on this Mac through /etc/hosts
+// (block-web.sh). The checker looks the address up itself over DNS over
+// HTTPS and hands it straight to its own browser, so only the checker gets
+// through. If the lookup fails it falls back to normal DNS.
+const BLOCKED_HOSTS = ["www.instagram.com", "instagram.com"];
+
+async function lookup(name) {
+  const r = await fetch(`https://cloudflare-dns.com/dns-query?name=${name}&type=A`, {
+    headers: { accept: "application/dns-json" },
+    signal: AbortSignal.timeout(8000),
+  });
+  const a = (await r.json()).Answer?.filter((x) => x.type === 1).map((x) => x.data) ?? [];
+  if (!a.length) throw new Error(`no address for ${name}`);
+  return a[0];
+}
+
+export async function resolverRules() {
+  try {
+    const rules = [];
+    for (const host of BLOCKED_HOSTS) rules.push(`MAP ${host} ${await lookup(host)}`);
+    return rules.join(", ");
+  } catch {
+    return null;
+  }
+}
+
 // Look like a normal desktop Chrome, not "HeadlessChrome".
 export async function openBrowser({ headless }) {
-  const browser = await chromium.launch({ headless });
+  const rules = await resolverRules();
+  const browser = await chromium.launch({ headless, args: rules ? [`--host-resolver-rules=${rules}`] : [] });
   const version = browser.version();
   const context = await browser.newContext({
     storageState: existsSync(SESSION) ? SESSION : undefined,

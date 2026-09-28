@@ -45,7 +45,7 @@ Plan these into step 5 (Mac checker) and the Worker before building it. Details 
 | 4. Checklist page (`GET /checklist`) | Done, deployed; waiting on Rayan to try it from a reminder |
 | 5. Mac checker (Playwright) | Working live 2026-09-28: baselines saved, a DM from the friend unlocked end to end. 5 of 8 profiles read posts; 3 read none (likely private or empty, Rayan to confirm) |
 | 6. launchd schedule | Done 2026-09-28: `checker/install-schedule.sh` installs `com.insta-lock-in.checker` (hourly, with the 12 hour gate in `check.js`; logs to `checker/checker.log`) |
-| 7. Hardening (heartbeat, Screen Time web block) | Todo |
+| 7. Hardening | In progress 2026-09-28: heartbeat and still waiting reminders done; checker bypasses the Mac hosts block via DNS over HTTPS (`resolverRules` in `checker/src/setup.js`); Rayan to run `block-web.sh`, set the iPhone Screen Time web block, and optionally add an Airplane Mode automation |
 | 8. Full cycle test | Todo |
 
 ## Infra facts
@@ -69,6 +69,7 @@ worker/wrangler.toml    KV binding and caps/checklist vars
 checker/check.js        one checker run (`npm run check`, `npm run dry` prints without unlocking)
 checker/login.js        one time visible login that saves checker/session.json
 checker/install-schedule.sh  installs the launchd job (`remove` uninstalls)
+checker/block-web.sh    sudo; blocks instagram.com in /etc/hosts for every Mac browser (`remove` undoes)
 checker/src/detect.js   pure baseline and diff logic, tested in checker/test/
 checker/src/instagram.js read only Instagram web API calls (profile, stories, inbox list)
 docs/PLAN.md            full architecture plan
