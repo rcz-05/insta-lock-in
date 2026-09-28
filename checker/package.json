@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "login": "node login.js",
-    "check": "node check.js",
+    "check": "node check.js --now",
     "dry": "node check.js --dry-run",
     "dm": "node check.js --dm-only",
     "test": "node --test test/*.test.js"

@@ -1,6 +1,11 @@
 // One checker run: look at the watched accounts, find what is new since last
 // time, and ask the Worker to unlock. `--dry-run` prints what it would unlock
 // and saves nothing. `--dm-only` skips profiles and only reads the inbox list.
+//
+// launchd starts this every hour. A scheduled run does real work only when
+// the last completed run was about 12 hours ago, so Instagram sees at most
+// two checks a day, but a check missed while the Mac was off, asleep or
+// offline happens within an hour of it being back. `--now` skips the wait.
 
 import { readFileSync, writeFileSync, existsSync, chmodSync } from "node:fs";
 import { loadConfig, openBrowser, alert, log, pause, SESSION, STATE } from "./src/setup.js";
@@ -9,6 +14,8 @@ import { profile, inbox, messagesFrom, LoggedOut, RateLimited } from "./src/inst
 
 const dryRun = process.argv.includes("--dry-run");
 const dmOnly = process.argv.includes("--dm-only");
+const manual = dryRun || dmOnly || process.argv.includes("--now");
+const GAP = (12 * 60 - 10) * 60 * 1000;
 const cfg = loadConfig();
 if (!existsSync(SESSION)) {
   log("No session yet. Run: npm run login");
@@ -16,6 +23,7 @@ if (!existsSync(SESSION)) {
 }
 
 let state = existsSync(STATE) ? JSON.parse(readFileSync(STATE, "utf8")) : emptyState();
+if (!manual && state.last_run && Date.now() - state.last_run < GAP) process.exit(0);
 const found = []; // [{ kind, handle, items }]
 const now = Date.now();
 
@@ -28,9 +36,11 @@ function track(kind, handle, items) {
 
 const { browser, context } = await openBrowser({ headless: true });
 let exitCode = 0;
+let reached = false; // got through to Instagram, so this run counts
 try {
   const page = await context.newPage();
   await page.goto("https://www.instagram.com/", { waitUntil: "domcontentloaded" });
+  reached = true;
   if (page.url().includes("/accounts/login")) throw new LoggedOut("redirected to login");
 
   // Every account we need a profile for, in random order, spaced out.
@@ -79,7 +89,19 @@ try {
   await browser.close();
 }
 
-if (exitCode === 3) process.exit(exitCode);
+// A run that reached Instagram counts, even a logged out one, so problems
+// are reported every 12 hours rather than every hour. A run with no
+// internet does not count and is retried next hour.
+// A messages only run saves what it saw but is not the 12 hour check.
+const markRun = () => {
+  if (!reached || dryRun) return;
+  if (!dmOnly) state.last_run = now;
+  writeFileSync(STATE, JSON.stringify(state, null, 2));
+};
+if (exitCode === 3) {
+  markRun();
+  process.exit(exitCode);
+}
 
 const bodies = unlockBodies(found);
 if (dryRun) {
@@ -100,7 +122,7 @@ for (const body of bodies) {
   }
   log(`unlocked ${body.reason}: ${JSON.stringify(await r.json())}`);
 }
-writeFileSync(STATE, JSON.stringify(state, null, 2));
+markRun();
 
 // Check in so the Worker knows the checker is alive and can remind about
 // anything unlocked earlier that is still waiting to be opened.

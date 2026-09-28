@@ -1,6 +1,7 @@
 #!/bin/zsh
-# Install (or with "remove", uninstall) the launchd job that runs the checker
-# at 9:00 and 21:00. If the Mac is asleep then, launchd runs it on wake.
+# Install (or with "remove", uninstall) the launchd job that starts the
+# checker every hour and at login. check.js itself only does real work when
+# the last completed run was about 12 hours ago.
 set -euo pipefail
 
 LABEL="com.insta-lock-in.checker"
@@ -28,11 +29,8 @@ cat > "$PLIST" <<EOF
     <string>$DIR/check.js</string>
   </array>
   <key>WorkingDirectory</key><string>$DIR</string>
-  <key>StartCalendarInterval</key>
-  <array>
-    <dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
-    <dict><key>Hour</key><integer>21</integer><key>Minute</key><integer>0</integer></dict>
-  </array>
+  <key>StartInterval</key><integer>3600</integer>
+  <key>RunAtLoad</key><true/>
   <key>StandardOutPath</key><string>$DIR/checker.log</string>
   <key>StandardErrorPath</key><string>$DIR/checker.log</string>
   <key>EnvironmentVariables</key>
@@ -42,4 +40,4 @@ cat > "$PLIST" <<EOF
 EOF
 
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
-echo "Installed $LABEL: runs at 9:00 and 21:00, logs to $DIR/checker.log"
+echo "Installed $LABEL: tries every hour, checks Instagram about every 12 hours, logs to $DIR/checker.log"
