@@ -46,6 +46,8 @@ export function initialState() {
     cap_minutes: null,
     last_nag: null,
     nag_count: 0,
+    last_check: null, // when the Mac checker last checked in
+    stale_alerted: false, // already warned that the checker stopped
     seen: [], // ids already used for an unlock, newest last
     log: [], // finished sessions: { reason, items, started, ended, minutes, how }
   };
@@ -67,6 +69,8 @@ function relock(s, now, how) {
   return {
     ...initialState(),
     seen: s.seen,
+    last_check: s.last_check,
+    stale_alerted: s.stale_alerted,
     log: [...s.log, entry].slice(-100),
   };
 }
@@ -312,5 +316,44 @@ export function unlockPush(prev, next, added, now) {
     level: "timeSensitive",
     body: `${what} ${when}`,
     checklist: false,
+  };
+}
+
+const WAITING_AFTER = 60 * MINUTE;
+export const STALE_AFTER = 26 * 60 * MINUTE;
+
+/**
+ * The Mac checker checked in after a run. Records the time and, if something
+ * unlocked earlier is still waiting to be opened, returns a reminder so it
+ * is not forgotten. Returns { state, message }.
+ */
+export function checkIn(s, now) {
+  const next = { ...s, last_check: now, stale_alerted: false };
+  if (s.state !== "unlocked" || now - s.unlocked_at < WAITING_AFTER) return { state: next, message: null };
+  const what = describe(s);
+  return {
+    state: next,
+    message: {
+      title: "Still waiting",
+      level: "timeSensitive",
+      body: `${what[0].toUpperCase()}${what.slice(1)} is still waiting. Your ${s.cap_minutes} minutes start when you open Instagram.`,
+      checklist: false,
+    },
+  };
+}
+
+/** Warn once if the checker has not checked in for over a day. */
+export function staleCheck(s, now) {
+  if (s.last_check == null || s.stale_alerted || now - s.last_check < STALE_AFTER) {
+    return { state: s, message: null };
+  }
+  return {
+    state: { ...s, stale_alerted: true },
+    message: {
+      title: "Checker stopped",
+      level: "timeSensitive",
+      body: "The Mac checker has not run for over a day, so nothing new can unlock. Open the Mac and check it.",
+      checklist: false,
+    },
   };
 }

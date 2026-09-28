@@ -13,6 +13,8 @@ import {
   nag,
   finalPush,
   unlockPush,
+  checkIn,
+  staleCheck,
 } from "../src/logic.js";
 
 const cfg = readConfig({});
@@ -234,4 +236,31 @@ test("unlock push says what arrived and when the clock starts", () => {
   const d = unlock(opened, { reason: "dm", items: [{ id: "M7" }] }, cfg, T0 + 3 * MINUTE);
   assert.equal(unlockPush(opened, d.state, d.added, T0 + 3 * MINUTE).body, "More from her. 10 min left.");
   assert.equal(unlockPush(s0, s0, 0, T0), null);
+});
+
+test("check in reminds about an unlock left waiting, not a fresh one", () => {
+  const u = unlock(initialState(), post, cfg, T0).state;
+  assert.equal(checkIn(u, T0 + 30 * MINUTE).message, null);
+  const r = checkIn(u, T0 + 12 * 60 * MINUTE);
+  assert.equal(r.message.body, "Her new post is still waiting. Your 30 minutes start when you open Instagram.");
+  assert.equal(r.state.last_check, T0 + 12 * 60 * MINUTE);
+  assert.equal(r.state.state, "unlocked");
+  // Nothing to remind about while locked or in a session.
+  assert.equal(checkIn(initialState(), T0).message, null);
+  assert.equal(checkIn(status(u, T0).state, T0 + 12 * 60 * MINUTE).message, null);
+});
+
+test("a checker silent for over a day triggers one warning", () => {
+  let s = checkIn(initialState(), T0).state;
+  assert.equal(staleCheck(s, T0 + 25 * 60 * MINUTE).message, null);
+  const r = staleCheck(s, T0 + 27 * 60 * MINUTE);
+  assert.equal(r.message.title, "Checker stopped");
+  assert.equal(staleCheck(r.state, T0 + 28 * 60 * MINUTE).message, null);
+  assert.equal(checkIn(r.state, T0 + 29 * 60 * MINUTE).state.stale_alerted, false);
+  assert.equal(staleCheck(initialState(), T0).message, null);
+});
+
+test("relock keeps the checker check in time", () => {
+  const s = { ...open(post), last_check: T0 };
+  assert.equal(forceLock(s, T0 + MINUTE).last_check, T0);
 });

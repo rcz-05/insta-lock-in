@@ -214,3 +214,25 @@ test("checklist page shows ticked items and the locked state", async () => {
   assert.match(html, /Instagram is locked/);
   assert.equal((await handle(new Request("https://lock.example/checklist"), env, T0)).status, 401);
 });
+
+test("ping records the check in and reminds about waiting unlocks", async () => {
+  const env = pushEnv();
+  const f = fakeFetch();
+  let r = await (await handle(req("POST", "/ping"), env, T0, f)).json();
+  assert.deepEqual(r, { state: "locked", reminded: false });
+  await handle(req("POST", "/unlock", { reason: "dm", items: [{ id: "M1", from: "Sam" }] }), env, T0, f);
+  r = await (await handle(req("POST", "/ping"), env, T0 + 12 * 60 * MINUTE, f)).json();
+  assert.deepEqual(r, { state: "unlocked", reminded: true });
+  assert.equal(JSON.parse(f.calls.at(-1).body).title, "Still waiting");
+  const s = await (await handle(req("GET", "/state"), env, T0 + 12 * 60 * MINUTE, f)).json();
+  assert.equal(s.last_check, T0 + 12 * 60 * MINUTE);
+});
+
+test("cron warns once when the checker goes quiet", async () => {
+  const env = pushEnv();
+  const f = fakeFetch();
+  await handle(req("POST", "/ping"), env, T0, f);
+  assert.equal((await tick(env, T0 + 27 * 60 * MINUTE, f)).length, 1);
+  assert.equal(JSON.parse(f.calls.at(-1).body).title, "Checker stopped");
+  assert.equal((await tick(env, T0 + 28 * 60 * MINUTE, f)).length, 0);
+});

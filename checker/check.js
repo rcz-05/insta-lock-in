@@ -101,5 +101,12 @@ for (const body of bodies) {
   log(`unlocked ${body.reason}: ${JSON.stringify(await r.json())}`);
 }
 writeFileSync(STATE, JSON.stringify(state, null, 2));
+
+// Check in so the Worker knows the checker is alive and can remind about
+// anything unlocked earlier that is still waiting to be opened.
+const ping = await fetch(`${cfg.workerUrl}/ping`, { method: "POST", headers: { "x-token": cfg.token } })
+  .then((r) => r.json())
+  .catch((err) => ({ error: err.message }));
+log(`check in: ${JSON.stringify(ping)}`);
 log(bodies.length ? "done, unlocked" : "done, nothing new");
 process.exit(exitCode);

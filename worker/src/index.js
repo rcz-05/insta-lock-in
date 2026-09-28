@@ -11,6 +11,8 @@ import {
   nag,
   finalPush,
   unlockPush,
+  checkIn,
+  staleCheck,
 } from "./logic.js";
 import { renderChecklist } from "./checklist.js";
 
@@ -93,9 +95,10 @@ export async function tick(env, now = Date.now(), fetchFn = fetch) {
   const prev = await loadState(env);
   const capped = enforceCap(prev, now);
   const r = nag(capped, cfg, now);
-  if (r.state === prev) return [];
-  await saveState(env, r.state);
-  const sent = [finalPush(prev, r.state), r.message].filter(Boolean);
+  const stale = staleCheck(r.state, now);
+  if (stale.state === prev) return [];
+  await saveState(env, stale.state);
+  const sent = [finalPush(prev, stale.state), r.message, stale.message].filter(Boolean);
   for (const msg of sent) await notify(env, msg, fetchFn);
   return sent;
 }
@@ -140,6 +143,13 @@ export async function handle(request, env, now = Date.now(), fetchFn = fetch) {
         const r = check(s, body, now);
         await commit(env, prev, r.state, fetchFn);
         return json({ done: r.done, state: r.state.state, checked: r.state.checked });
+      }
+      case "POST /ping": {
+        // The Mac checker finished a run.
+        const r = checkIn(enforceCap(s, now), now);
+        await commit(env, prev, r.state, fetchFn);
+        await notify(env, r.message, fetchFn);
+        return json({ state: r.state.state, reminded: r.message != null });
       }
       case "POST /lock": {
         s = forceLock(s, now);
