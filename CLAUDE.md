@@ -30,7 +30,8 @@ Plan these into step 5 (Mac checker) and the Worker before building it. Details 
 - Only unhandled things count (from Rayan, 2026-09-28): messages sent before his latest reply in the thread are skipped, and posts he already liked (`has_liked`) are skipped.
 - Stories are off (2026-09-28): Rayan said they matter little; `STORY_HANDLES` is empty in `checker/.env`. The code still supports them.
 - After every run the checker POSTs `/ping`. The Worker records `last_check`, pushes "Still waiting" if something unlocked over an hour ago has not been opened, and the cron pushes "Checker stopped" once if no check in for 26 hours.
-- Open question for Rayan: if a session hits its cap before he likes the post or replies, should that item unlock once more at the next check? Today it never unlocks again.
+- No second chances (Rayan, 2026-09-28): an item whose session hit the cap is used up and never unlocks again. This is deliberate; do not add retries.
+- Remote running was considered and rejected (2026-09-28): a cloud server logs into Instagram from a data center address and risks checkpoints or a locked account. The Mac only needs to be asleep, not open; launchd runs a missed check on wake, and `pmset repeat` can wake it daily.
 - Wording: messages say "her" today (`describe()` and `ask()` in `logic.js`); switch to naming the person once there are several.
 - Unlock push is built: `unlockPush()` in `logic.js`, sent from `/unlock`. Items may carry an optional `from` display name the checker should fill in.
 
@@ -43,7 +44,7 @@ Plan these into step 5 (Mac checker) and the Worker before building it. Details 
 | 3. Shortcuts gate on iPhone | Done 2026-09-27; locked bounces Home, unlocked stays open, both verified on Rayan's phone |
 | 4. Checklist page (`GET /checklist`) | Done, deployed; waiting on Rayan to try it from a reminder |
 | 5. Mac checker (Playwright) | Working live 2026-09-28: baselines saved, a DM from the friend unlocked end to end. 5 of 8 profiles read posts; 3 read none (likely private or empty, Rayan to confirm) |
-| 6. launchd schedule | Todo |
+| 6. launchd schedule | Done 2026-09-28: `checker/install-schedule.sh` installs `com.insta-lock-in.checker` (9:00 and 21:00, logs to `checker/checker.log`); verified in a clean launchd style environment |
 | 7. Hardening (heartbeat, Screen Time web block) | Todo |
 | 8. Full cycle test | Todo |
 
@@ -67,6 +68,7 @@ worker/test/            node:test suites; run `npm test` in worker/
 worker/wrangler.toml    KV binding and caps/checklist vars
 checker/check.js        one checker run (`npm run check`, `npm run dry` prints without unlocking)
 checker/login.js        one time visible login that saves checker/session.json
+checker/install-schedule.sh  installs the launchd job (`remove` uninstalls)
 checker/src/detect.js   pure baseline and diff logic, tested in checker/test/
 checker/src/instagram.js read only Instagram web API calls (profile, stories, inbox list)
 docs/PLAN.md            full architecture plan

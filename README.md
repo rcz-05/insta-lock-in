@@ -29,7 +29,7 @@ Instagram ──reads──> Mac checker ──POST /unlock──> Cloudflare Wo
 - [x] Step 3: Shortcuts gate on the iPhone
 - [x] Step 4: Checklist page
 - [x] Step 5: Mac checker (Playwright)
-- [ ] Step 6: launchd schedule
+- [x] Step 6: launchd schedule
 - [ ] Step 7: Hardening
 - [ ] Step 8: Full cycle test
 
