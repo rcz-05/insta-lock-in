@@ -49,11 +49,13 @@ export async function profile(page, handle) {
     const url = res.url();
     if (!/instagram\.com\/(graphql|api)\//.test(url)) return;
     if (res.status() === 429) limited = true;
-    if (!(res.headers()["content-type"] ?? "").includes("json")) return;
+    // Instagram labels most of these text/javascript even though they are
+    // JSON, sometimes behind a "for (;;);" guard.
     try {
-      bodies.push(await res.json());
+      const text = await res.text();
+      bodies.push(JSON.parse(text.replace(/^for \(;;\);/, "")));
     } catch {
-      // Body not available (redirect or aborted); ignore.
+      // Not JSON, or no body (redirect or aborted); ignore.
     }
   };
   page.on("response", onResponse);
