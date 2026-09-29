@@ -6,6 +6,7 @@
 # Clock times (StartCalendarInterval), not StartInterval: StartInterval only
 # counts time the Mac is awake, so after a night asleep it could wait up to
 # another awake hour. Clock times missed during sleep run once, on wake.
+# caffeinate -i keeps an awake Mac from idling to sleep mid run.
 set -euo pipefail
 
 LABEL="com.insta-lock-in.checker"
@@ -29,6 +30,8 @@ cat > "$PLIST" <<EOF
   <key>Label</key><string>$LABEL</string>
   <key>ProgramArguments</key>
   <array>
+    <string>/usr/bin/caffeinate</string>
+    <string>-i</string>
     <string>$NODE</string>
     <string>$DIR/check.js</string>
   </array>

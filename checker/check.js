@@ -46,8 +46,20 @@ try {
   log("state.json unreadable; starting a fresh baseline");
 }
 if (!manual && state.last_run && Date.now() - state.last_run < GAP) process.exit(0);
+// After a run that lost its connection, wait an hour before retrying, so a
+// flaky network never turns into dozens of visits to Instagram a day.
+const RETRY = 60 * 60 * 1000;
+if (!manual && state.last_attempt && Date.now() - state.last_attempt < RETRY) process.exit(0);
 const found = []; // [{ kind, handle, items }]
 const problems = []; // things Rayan should hear about
+let offline = false; // lost the internet partway (asleep, lid closed, Wi-Fi drop)
+
+// Dropped connections are not Instagram problems: the run just did not
+// happen properly, so it should not count and should retry soon.
+const isNetworkError = (err) =>
+  /net::ERR_|Failed to fetch|ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|NetworkError|TimeoutError|aborted|Timeout \d+ms exceeded/i.test(
+    `${err?.name ?? ""} ${err?.message ?? err}`,
+  );
 const now = Date.now();
 
 function track(kind, handle, items) {
@@ -82,6 +94,11 @@ try {
       if (cfg.storyHandles.includes(handle)) track("story", handle, p.stories);
     } catch (err) {
       if (err instanceof LoggedOut) throw err;
+      if (isNetworkError(err)) {
+        log(`lost the connection at @${handle}; this run will not count`);
+        offline = true;
+        break;
+      }
       if (err instanceof RateLimited) {
         // Stop at once; pushing on is what gets accounts flagged.
         log(`${err.message}; stopping this run early`);
@@ -95,7 +112,7 @@ try {
     }
   }
 
-  if (cfg.dmHandles.length) {
+  if (cfg.dmHandles.length && !offline) {
     await pause(3000, 8000);
     const box = await inbox(page);
     for (const handle of cfg.dmHandles) track("dm", handle, messagesFrom(box, handle));
@@ -112,6 +129,10 @@ try {
     log(`Instagram session expired: ${err.message}`);
     if (!dryRun) await alert(cfg, "Checker logged out", "Instagram logged the checker out or wants a security check, so nothing can unlock. On the Mac, open Terminal and run: cd ~/Documents/insta-lock-in/checker && npm run login");
     exitCode = 3;
+  } else if (isNetworkError(err)) {
+    log(`lost the connection (${err.message.split("\n")[0]}); this run will not count`);
+    offline = true;
+    exitCode = 1;
   } else {
     log(`run failed: ${err.stack ?? err.message}`);
     if (reached) problems.push(`The check failed partway (${String(err.message).slice(0, 80)}).`);
@@ -124,10 +145,12 @@ try {
 // A run that reached Instagram counts, even a logged out one, so problems
 // are reported every 12 hours rather than every hour. A run with no
 // internet does not count and is retried next hour.
-// A messages only run saves what it saw but is not the 12 hour check.
+// A messages only run, or one that lost the internet partway, saves what it
+// saw but is not the 12 hour check, so the next quarter hour tries again.
 const markRun = () => {
   if (!reached || dryRun) return;
-  if (!dmOnly) state.last_run = now;
+  if (!dmOnly) state.last_attempt = now;
+  if (!dmOnly && !offline) state.last_run = now;
   saveJson(STATE, state);
 };
 if (exitCode === 3) {
@@ -167,10 +190,10 @@ const ping = await fetch(`${cfg.workerUrl}/ping`, {
   .then((r) => r.json())
   .catch((err) => ({ error: err.message }));
 log(`check in: ${JSON.stringify(ping)}`);
-if (problems.length) {
+if (problems.length && !offline) {
   // Deduplicated, so eight failed profiles read as one line.
   const text = [...new Set(problems)].join(" ");
   await alert(cfg, "Checker needs attention", `${text} It will try again in about 12 hours. If this keeps happening, look at checker.log on the Mac.`);
 }
-log(bodies.length ? "done, unlocked" : "done, nothing new");
+log(offline ? "incomplete, will retry" : bodies.length ? "done, unlocked" : "done, nothing new");
 process.exit(exitCode);
