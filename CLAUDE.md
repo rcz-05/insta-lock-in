@@ -47,7 +47,7 @@ Plan these into step 5 (Mac checker) and the Worker before building it. Details 
 | 5. Mac checker (Playwright) | Working live 2026-09-28: baselines saved, a DM from the friend unlocked end to end. 5 of 8 profiles read posts; 3 read none (likely private or empty, Rayan to confirm) |
 | 6. launchd schedule | Done 2026-09-28: `checker/install-schedule.sh` installs `com.insta-lock-in.checker` (every 15 minutes by clock time and on wake, with the 12 hour gate in `check.js`; logs to `checker/checker.log`) |
 | 7. Hardening | Done 2026-09-28: heartbeat, still waiting reminders, checker watchdog (15 min), atomic saves, alerts on partial failures and security checks. Web blocks (`block-web.sh`, iPhone Screen Time, Airplane Mode automation) are available but Rayan chose not to use them |
-| 8. Full cycle test | Todo |
+| 8. Full cycle test | Live since 2026-09-28: scheduled runs at 10:51 AM, 11:30 PM (after the network fix) and 11:30 AM on 9-29 each started on their own, read all 8 profiles and the inbox, and unlocked real unreplied DMs |
 
 ## Infra facts
 
