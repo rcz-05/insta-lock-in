@@ -27,6 +27,7 @@ Plan these into step 5 (Mac checker) and the Worker before building it. Details 
 - Accounts live in `checker/.env` (gitignored): `POST_HANDLES`, `STORY_HANDLES`, `DM_HANDLES` (comma lists). Messages count from two people as of 2026-09-27. Rayan earlier said stories should be only her plus one other person, but his `.env` lists every post account for stories too; he is deciding which he wants.
 - Stories: detect that a new story exists without opening it, so Rayan never shows up as a viewer from the checker.
 - DMs: read the inbox list preview only. Opening a thread on web marks it Seen, so the checker must never open threads.
+- Inbox reading changed 2026-10-13: Instagram's `/api/v1/direct_v2/inbox/` began answering 404 on 2026-10-10, so messages went unchecked for three days. The checker now loads `/direct/inbox/` like a person and reads the thread list the page fetches (`readInbox` in `checker/src/scan.js`, shape matched on `users` plus `slide_messages`). Only the 15 most recent conversations are in that list; a new message moves its chat to the top, so that is enough.
 - Only unhandled things count (from Rayan, 2026-09-28): messages sent before his latest reply in the thread are skipped, and posts he already liked (`has_liked`) are skipped.
 - Stories are off (2026-09-28): Rayan said they matter little; `STORY_HANDLES` is empty in `checker/.env`. The code still supports them.
 - After every run the checker POSTs `/ping`. The Worker records `last_check`, pushes "Still waiting" if something unlocked over an hour ago has not been opened, and the cron pushes "Checker stopped" once if no check in for 26 hours.
@@ -72,7 +73,8 @@ checker/login.js        one time visible login that saves checker/session.json
 checker/install-schedule.sh  installs the launchd job (`remove` uninstalls)
 checker/block-web.sh    sudo; blocks instagram.com in /etc/hosts for every Mac browser (`remove` undoes)
 checker/src/detect.js   pure baseline and diff logic, tested in checker/test/
-checker/src/instagram.js read only Instagram web API calls (profile, stories, inbox list)
+checker/src/instagram.js opens the profile and inbox pages and collects the JSON they load
+checker/src/scan.js     pure readers for that JSON (`readProfile`, `readInbox`), tested in checker/test/
 docs/PLAN.md            full architecture plan
 ```
 

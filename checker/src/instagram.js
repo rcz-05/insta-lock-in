@@ -1,57 +1,25 @@
-// Read only access to Instagram through a logged in browser page. Every call
-// is a GET the Instagram website itself makes; nothing here likes, views a
-// story, or opens a chat, so nobody sees Rayan as "seen" or "viewed".
+// Read only access to Instagram through a logged in browser page. It only
+// opens pages (a profile, the inbox list) and reads what they load; nothing
+// here likes, views a story, or opens a chat, so nobody sees Rayan as "seen"
+// or "viewed".
 
-import { readProfile } from "./scan.js";
-
-// Public app id the Instagram website sends with its own API calls.
-const APP_ID = "936619743392459";
+import { readProfile, readInbox } from "./scan.js";
 
 export class LoggedOut extends Error {}
-
-async function get(page, path) {
-  const r = await page.evaluate(
-    async ({ path, appId }) => {
-      const res = await fetch(path, {
-        credentials: "include",
-        signal: AbortSignal.timeout(30000),
-        headers: { "x-ig-app-id": appId, "x-requested-with": "XMLHttpRequest" },
-      });
-      const text = await res.text();
-      return { status: res.status, url: res.url, text };
-    },
-    { path, appId: APP_ID },
-  );
-  if (r.status === 401 || r.status === 403 || /\/accounts\/login|\/challenge/.test(r.url)) {
-    throw new LoggedOut(`logged out (${r.status} on ${path})`);
-  }
-  let body;
-  try {
-    body = JSON.parse(r.text);
-  } catch {
-    throw new Error(`not JSON (${r.status}) from ${path}`);
-  }
-  if (body.require_login) throw new LoggedOut(`login required on ${path}`);
-  if (r.status !== 200) throw new Error(`HTTP ${r.status} from ${path}: ${body.message ?? ""}`);
-  return body;
-}
 
 export class RateLimited extends Error {}
 
 /**
- * Open a profile page the way a person would and read the data the page
- * itself loads: newest posts and Reels, and the time of the latest story
- * (seen from the profile, so the story is never opened or marked viewed).
+ * Open a page the way a person would and collect every JSON body it loads,
+ * from its network calls and from the data embedded in its HTML. Instagram
+ * labels most of these text/javascript, sometimes behind a "for (;;);" guard.
  */
-export async function profile(page, handle) {
+async function loadPage(page, path, label) {
   const bodies = [];
   let limited = false;
   const onResponse = async (res) => {
-    const url = res.url();
-    if (!/instagram\.com\/(graphql|api)\//.test(url)) return;
+    if (!/instagram\.com\/(graphql|api)\//.test(res.url())) return;
     if (res.status() === 429) limited = true;
-    // Instagram labels most of these text/javascript even though they are
-    // JSON, sometimes behind a "for (;;);" guard.
     try {
       const text = await res.text();
       bodies.push(JSON.parse(text.replace(/^for \(;;\);/, "")));
@@ -61,11 +29,10 @@ export async function profile(page, handle) {
   };
   page.on("response", onResponse);
   try {
-    const res = await page.goto(`https://www.instagram.com/${encodeURIComponent(handle)}/`, { waitUntil: "domcontentloaded" });
+    const res = await page.goto(`https://www.instagram.com${path}`, { waitUntil: "domcontentloaded" });
     if (res?.status() === 429) limited = true;
     if (/\/accounts\/login|\/challenge/.test(page.url())) throw new LoggedOut("Instagram wants a login or a security check");
     await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
-    // Data embedded in the page HTML itself.
     const embedded = await page.$$eval('script[type="application/json"]', (els) => els.map((e) => e.textContent));
     for (const text of embedded) {
       try {
@@ -77,15 +44,30 @@ export async function profile(page, handle) {
   } finally {
     page.off("response", onResponse);
   }
-  if (limited) throw new RateLimited(`rate limited on @${handle}`);
+  if (limited) throw new RateLimited(`rate limited on ${label}`);
+  return bodies;
+}
+
+/**
+ * A profile's newest posts and Reels, and the time of the latest story (seen
+ * from the profile, so the story is never opened or marked viewed).
+ */
+export async function profile(page, handle) {
+  const bodies = await loadPage(page, `/${encodeURIComponent(handle)}/`, `@${handle}`);
   const p = readProfile(bodies, handle);
   if (!p.id && p.posts.length === 0) throw new Error(`no profile data found for @${handle}`);
   return p;
 }
 
-/** The inbox list, fetched once per run. Never opens a thread. */
+/**
+ * The conversation list, read from the inbox page. No conversation is opened,
+ * so nothing is marked Seen. (The old inbox API started answering 404 on
+ * 2026-10-10.)
+ */
 export async function inbox(page) {
-  return get(page, "/api/v1/direct_v2/inbox/?persistentBadging=true&limit=20&thread_message_limit=10");
+  const box = readInbox(await loadPage(page, "/direct/inbox/", "the inbox"));
+  if (!box) throw new Error("no inbox data found");
+  return box;
 }
 
 /**

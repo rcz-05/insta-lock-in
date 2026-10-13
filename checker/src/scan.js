@@ -40,3 +40,49 @@ export function readProfile(bodies, handle) {
     stories,
   };
 }
+
+/**
+ * Pure: pull the conversation list out of whatever JSON the Instagram inbox
+ * page loaded, in the shape messagesFrom() reads:
+ * { viewer: { pk }, inbox: { threads: [{ thread_id, is_group, users, items }] } }.
+ * Matches on field shapes (a thread has `users` and `slide_messages`) rather
+ * than fixed paths. Returns null when no thread list is found at all.
+ */
+export function readInbox(bodies) {
+  const threads = new Map();
+  let viewer = null;
+
+  const walk = (v) => {
+    if (!v || typeof v !== "object") return;
+    if (Array.isArray(v)) return v.forEach(walk);
+    if (Array.isArray(v.users) && Array.isArray(v.slide_messages?.edges)) {
+      // Messages carry the sender's messaging id, not the Instagram user id.
+      viewer ??= v.viewer?.interop_messaging_user_fbid ?? null;
+      const key = String(v.thread_key ?? v.thread_id ?? v.id);
+      const items = v.slide_messages.edges
+        .map((e) => e?.node)
+        .filter((n) => n?.id && n.timestamp_ms)
+        .map((n) => ({
+          item_id: n.id,
+          user_id: String(n.sender_fbid),
+          // messagesFrom() expects microseconds, as the old API gave.
+          timestamp: String(Number(n.timestamp_ms) * 1000),
+        }));
+      // The same thread can appear in several responses; keep the fullest.
+      if (!threads.has(key) || threads.get(key).items.length < items.length) {
+        threads.set(key, {
+          thread_id: key,
+          is_group: v.is_group === true,
+          users: v.users.map((u) => ({ username: u?.username })),
+          items,
+        });
+      }
+      return;
+    }
+    for (const k in v) walk(v[k]);
+  };
+  bodies.forEach(walk);
+
+  if (threads.size === 0) return null;
+  return { viewer: { pk: viewer != null ? String(viewer) : "" }, inbox: { threads: [...threads.values()] } };
+}

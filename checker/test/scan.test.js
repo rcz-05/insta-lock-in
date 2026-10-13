@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readProfile } from "../src/scan.js";
+import { readProfile, readInbox } from "../src/scan.js";
+import { messagesFrom } from "../src/instagram.js";
 
 test("reads posts, reels and latest story from new style page data", () => {
   const bodies = [
@@ -50,4 +51,35 @@ test("posts Rayan already liked are skipped", () => {
   );
   assert.deepEqual(p.posts.map((x) => x.id), ["N1"]);
   assert.equal(p.postCount, 2);
+});
+
+test("reads the conversation list from inbox page data", () => {
+  const T = 1790000000000;
+  const thread = (key, users, msgs, extra = {}) => ({
+    as_ig_direct_thread: {
+      thread_key: key,
+      is_group: users.length > 1,
+      users: users.map((username) => ({ username })),
+      viewer: { interop_messaging_user_fbid: "111" },
+      slide_messages: { edges: msgs.map(([id, sender, ts]) => ({ node: { id, sender_fbid: sender, timestamp_ms: String(ts) } })) },
+      ...extra,
+    },
+  });
+  const bodies = [
+    { data: { mailbox: { threads_by_folder: { edges: [
+      { node: thread("t1", ["Maya"], [["m3", "222", T + 3000], ["m2", "111", T + 2000], ["m1", "222", T + 1000]]) },
+      { node: thread("g1", ["maya", "sam"], [["x1", "222", T + 9000]]) },
+    ] } } } },
+    // A fuller copy of the same thread from a detail response wins.
+    { data: { thread: thread("t1", ["Maya"], [["m4", "222", T + 4000], ["m3", "222", T + 3000], ["m2", "111", T + 2000], ["m1", "222", T + 1000]]) } },
+  ];
+  const box = readInbox(bodies);
+  assert.equal(box.viewer.pk, "111");
+  assert.equal(box.inbox.threads.length, 2);
+  // Only what she sent after my last reply, from the one to one chat, not the group.
+  assert.deepEqual(messagesFrom(box, "maya"), [
+    { id: "dm:m4", ts: T + 4000, url: "https://www.instagram.com/direct/t/t1/" },
+    { id: "dm:m3", ts: T + 3000, url: "https://www.instagram.com/direct/t/t1/" },
+  ]);
+  assert.equal(readInbox([{ nothing: true }]), null);
 });
